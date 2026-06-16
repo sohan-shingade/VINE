@@ -1,0 +1,35 @@
+# D1 — scheduled sensor ingestion in the `ihv` namespace. Pulls InfluxDB ->
+# writes Parquet snapshots to a CephFS PVC. The InfluxDB token comes from a
+# K8s Secret (created once, see docs/guides/nrp-setup.md) — never inlined.
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: vine-ingest
+  namespace: ihv
+spec:
+  schedule: "0 * * * *"        # hourly
+  concurrencyPolicy: Forbid
+  jobTemplate:
+    spec:
+      backoffLimit: 2
+      template:
+        spec:
+          restartPolicy: Never
+          containers:
+            - name: ingest
+              image: gitlab-registry.nrp-nautilus.io/nrp-precision-agriculture/iron-horse-vineyards/vine/ingest:latest
+              args: ["ingest", "--start=-2d"]
+              envFrom:
+                - configMapRef: { name: vine-config }
+              env:
+                - name: VINE_INFLUX_TOKEN
+                  valueFrom:
+                    secretKeyRef: { name: vine-secrets, key: influx-token }
+              resources:
+                requests: { cpu: "500m", memory: "1Gi" }
+                limits: { cpu: "1", memory: "2Gi" }
+              volumeMounts:
+                - { name: data, mountPath: /app/data }
+          volumes:
+            - name: data
+              persistentVolumeClaim: { claimName: vine-data }

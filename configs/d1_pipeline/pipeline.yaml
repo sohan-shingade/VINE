@@ -1,0 +1,7 @@
+# D1 pipeline config: how raw data is regularized and turned into features.
+resample_freq: 1h
+rolling_windows: [1h, 6h, 24h]
+lags: [1, 6, 24]
+gdd_base_c: 10.0
+bands: [red, green, blue, nir, red_edge]   # source orthomosaic band order
+patch_size: 256

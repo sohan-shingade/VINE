@@ -1,0 +1,9 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: vine-irrigation
+  labels: { app: vine, track: irrigation }
+spec:
+  selector: { app: vine, track: irrigation }
+  ports:
+    - { port: 80, targetPort: 8000 }

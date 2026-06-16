@@ -1,0 +1,5 @@
+[core]
+    remote = nrp
+['remote "nrp"']
+    url = s3://ihv-vine/dvc
+    endpointurl = https://s3-west.nrp-nautilus.io

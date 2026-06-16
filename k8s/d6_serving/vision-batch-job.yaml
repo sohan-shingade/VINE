@@ -1,0 +1,30 @@
+# Batch CV inference on a new orthomosaic. GPU-scheduled. Triggered when a new
+# drone orthomosaic is uploaded (or run as a CronJob).
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: vine-cv-batch
+  labels: { app: vine, track: cv }
+spec:
+  backoffLimit: 2
+  template:
+    metadata:
+      labels: { app: vine, track: cv }
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: infer
+          image: gitlab-registry.nrp-nautilus.io/<group>/vine/cv:latest
+          command: ["vine", "infer", "cv", "/app/data/processed/latest.tif"]
+          envFrom:
+            - configMapRef: { name: vine-config }
+          resources:
+            limits: { nvidia.com/gpu: "1", cpu: "4", memory: "16Gi" }
+          volumeMounts:
+            - { name: data, mountPath: /app/data }
+            - { name: models, mountPath: /app/models, readOnly: true }
+      volumes:
+        - name: data
+          persistentVolumeClaim: { claimName: vine-data }
+        - name: models
+          persistentVolumeClaim: { claimName: vine-models }

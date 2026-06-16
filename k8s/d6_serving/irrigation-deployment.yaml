@@ -1,0 +1,33 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: vine-irrigation
+  labels: { app: vine, track: irrigation }
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: vine, track: irrigation }
+  template:
+    metadata:
+      labels: { app: vine, track: irrigation }
+    spec:
+      containers:
+        - name: api
+          image: gitlab-registry.nrp-nautilus.io/<group>/vine/irrigation:latest
+          ports: [{ containerPort: 8000 }]
+          envFrom:
+            - configMapRef: { name: vine-config }
+          resources:
+            requests: { cpu: "500m", memory: "1Gi" }
+            limits: { cpu: "2", memory: "2Gi" }
+          readinessProbe:
+            httpGet: { path: /healthz, port: 8000 }
+            initialDelaySeconds: 5
+          livenessProbe:
+            httpGet: { path: /healthz, port: 8000 }
+            initialDelaySeconds: 10
+          volumeMounts:
+            - { name: models, mountPath: /app/models, readOnly: true }
+      volumes:
+        - name: models
+          persistentVolumeClaim: { claimName: vine-models }

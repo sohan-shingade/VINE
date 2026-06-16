@@ -1,0 +1,54 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+.venv/
+venv/
+
+# uv
+.uv/
+
+# Tooling caches
+.ruff_cache/
+.mypy_cache/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Notebooks
+.ipynb_checkpoints/
+
+# Environment / secrets
+.env
+.env.local
+CLAUDE.local.md
+
+# ML artifacts & data (versioned with DVC, not git)
+data/raw/*
+data/interim/*
+data/processed/*
+models/*
+mlruns/
+*.ckpt
+*.pt
+*.pth
+*.onnx
+*.tif
+*.tiff
+*.npy
+*.npz
+# keep the folders themselves
+!data/raw/.gitkeep
+!data/interim/.gitkeep
+!data/processed/.gitkeep
+!models/.gitkeep
+!**/*.dvc
+
+# OS
+.DS_Store
+
+# Docs build
+site/

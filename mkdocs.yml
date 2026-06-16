@@ -1,0 +1,57 @@
+site_name: VINE Wiki
+site_description: AI/ML models for agricultural analytics on the National Research Platform (GSoC 2026)
+docs_dir: docs
+repo_url: https://gitlab.nrp-nautilus.io/
+edit_uri: ""
+
+theme:
+  name: material
+  palette:
+    - scheme: default
+      primary: green
+      toggle: { icon: material/weather-night, name: Dark mode }
+    - scheme: slate
+      primary: green
+      toggle: { icon: material/weather-sunny, name: Light mode }
+  features:
+    - navigation.sections
+    - navigation.top
+    - content.code.copy
+    - search.suggest
+
+markdown_extensions:
+  - admonition
+  - pymdownx.highlight
+  - pymdownx.superfences
+  - tables
+  - toc: { permalink: true }
+
+nav:
+  - Home: index.md
+  - Current state & progress: STATE.md
+  - Architecture: architecture.md
+  - Infrastructure (NRP & NDP): infrastructure.md
+  - Guides:
+      - Getting started: guides/getting-started.md
+      - Contributing: guides/contributing.md
+      - Working with Claude Code: guides/claude-code.md
+  - Data:
+      - Datasheet: data/index.md
+  - Models:
+      - Overview: models/index.md
+      - Template: models/_template.md
+  - Decisions (ADRs):
+      - Index: adr/index.md
+      - 0000 Template: adr/0000-template.md
+      - 0001 Monorepo layout: adr/0001-monorepo-src-layout.md
+      - 0002 uv: adr/0002-uv-package-manager.md
+      - 0003 Three-track priority: adr/0003-track-priority.md
+      - 0004 Config management: adr/0004-config-management.md
+      - 0005 Experiment tracking: adr/0005-experiment-tracking.md
+      - 0006 NDP data access: adr/0006-ndp-data-access.md
+      - 0007 NRP infrastructure: adr/0007-nrp-infrastructure.md
+      - 0008 Sensor source (InfluxDB): adr/0008-sensor-source-influxdb.md
+      - 0009 Weather data sources: adr/0009-weather-data-sources.md
+  - Devlog: devlog/index.md
+  - Roadmap: roadmap.md
+  - Glossary: glossary.md

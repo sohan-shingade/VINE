@@ -1,0 +1,115 @@
+[project]
+name = "vine"
+version = "0.1.0"
+description = "AI/ML models for agricultural analytics on the National Research Platform (GSoC 2026)"
+readme = "README.md"
+requires-python = ">=3.11,<3.13"
+license = { text = "MIT" }
+authors = [{ name = "Sohan Shingade", email = "sshingade@ucsd.edu" }]
+keywords = ["precision-agriculture", "remote-sensing", "time-series", "computer-vision", "mlops"]
+
+# Core deps shared across all tracks (the D1 pipeline + common utils).
+dependencies = [
+    "numpy>=1.26",
+    "pandas>=2.2",
+    "pyyaml>=6.0",
+    "pydantic>=2.6",
+    "pydantic-settings>=2.2",
+    "scikit-learn>=1.4",
+    "structlog>=24.1",
+    "requests>=2.31",  # National Data Platform CKAN client (vine.data.ndp)
+]
+
+[project.optional-dependencies]
+# D1 sensor source — InfluxDB (ThingsBoard) at IHV.
+sensors = [
+    "influxdb-client>=1.40",
+    "pyarrow>=15.0",  # Parquet snapshots in data/raw
+]
+# Shared geospatial / raster stack for the D1 imagery pipeline.
+geo = [
+    "rasterio>=1.3",
+    "rioxarray>=0.15",
+    "xarray>=2024.2",
+    "geopandas>=0.14",
+    "shapely>=2.0",
+]
+# D2 irrigation forecasting.
+irrigation = [
+    "statsmodels>=0.14",
+    "pmdarima>=2.0",
+    "prophet>=1.1",
+    "torch>=2.2",
+]
+# D3 plant-health computer vision.
+vision = [
+    "torch>=2.2",
+    "torchvision>=0.17",
+    "opencv-python-headless>=4.9",
+    "albumentations>=1.4",
+]
+# D4 harvest timing.
+harvest = [
+    "xgboost>=2.0",
+    "torch>=2.2",
+]
+# D5 experiment tracking. boto3 lets MLflow log artifacts to NRP S3
+# (s3-west.nrp-nautilus.io). DVC is a standalone CLI (`uv tool install
+# "dvc[s3]"`), not a library dep — see docs/adr/0005.
+track = [
+    "mlflow>=2.11",
+    "boto3>=1.34",
+]
+# D6 serving.
+serve = [
+    "fastapi>=0.110",
+    "uvicorn[standard]>=0.29",
+]
+# Dev tooling.
+dev = [
+    "ruff>=0.4",
+    "mypy>=1.9",
+    "pytest>=8.0",
+    "pytest-cov>=5.0",
+    "pre-commit>=3.7",
+    "mkdocs-material>=9.5",
+]
+
+[project.scripts]
+vine = "vine.cli:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/vine"]
+
+# ---------------------------------------------------------------------------
+# Tooling config (single source of truth — keep tool settings here, not in CI)
+# ---------------------------------------------------------------------------
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+# E/F pycodestyle+pyflakes, I import-sort, UP pyupgrade, B bugbear, SIM simplify.
+select = ["E", "F", "I", "UP", "B", "SIM", "NPY"]
+ignore = ["E501"]  # line length handled by formatter
+
+[tool.mypy]
+python_version = "3.11"
+warn_unused_ignores = true
+warn_redundant_casts = true
+ignore_missing_imports = true   # geo/ML libs ship incomplete stubs
+files = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra --strict-markers"
+markers = [
+    "slow: marks tests that train models or read large rasters",
+    "gpu: marks tests that require a GPU",
+]

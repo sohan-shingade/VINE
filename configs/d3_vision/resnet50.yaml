@@ -1,0 +1,12 @@
+# Hypothesis: a ResNet-50 fine-tuned on 7-channel patches (RGB+NIR+RedEdge+
+# NDVI+NDRE) classifies plant stress better than NDVI-threshold pseudo-labels.
+task: stress
+backbone: resnet50
+in_channels: 7
+num_classes: 3        # healthy | mild | severe
+patch_size: 256
+batch_size: 32
+lr: 0.0003
+epochs: 30
+pretrained: true
+pseudo_label_ndvi_threshold: 0.4

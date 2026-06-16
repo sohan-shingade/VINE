@@ -1,0 +1,9 @@
+"""D5 — systematic evaluation. Every model is compared against simpler ones.
+
+Shared metrics + walk-forward validation so the three tracks report results
+the same way (the basis for the evaluation report and final blog post).
+"""
+
+from vine.d5_evaluation.metrics import mae, precision_recall, rmse
+
+__all__ = ["mae", "rmse", "precision_recall"]

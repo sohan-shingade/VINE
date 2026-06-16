@@ -1,0 +1,24 @@
+# Persistent storage on NRP. Datasets live in S3 (pulled via DVC); these PVCs
+# hold what needs a POSIX filesystem. Use CephFS for large/parallel access.
+# Confirm available storageClassName values with the mentor / `kubectl get sc`.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: vine-models
+spec:
+  accessModes: [ReadWriteMany]
+  storageClassName: rook-cephfs   # CephFS — good for model checkpoints
+  resources:
+    requests:
+      storage: 50Gi
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: vine-data
+spec:
+  accessModes: [ReadWriteMany]
+  storageClassName: rook-cephfs
+  resources:
+    requests:
+      storage: 200Gi

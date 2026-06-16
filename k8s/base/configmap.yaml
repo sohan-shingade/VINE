@@ -1,0 +1,17 @@
+# Non-secret runtime config shared by all VINE services. Secrets (MLflow creds,
+# registry auth) go in a separate K8s Secret, never here.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: vine-config
+data:
+  VINE_DATA_DIR: "/app/data"
+  VINE_MODELS_DIR: "/app/models"
+  VINE_LOG_LEVEL: "INFO"
+  VINE_SEED: "42"
+  VINE_NDP_BASE_URL: "https://nationaldataplatform.org"
+  VINE_NDP_ORG: "iron-horse-vineyards"
+  # In-cluster S3 endpoint (Ceph RGW). External: https://s3-west.nrp-nautilus.io
+  VINE_S3_ENDPOINT_URL: "http://rook-ceph-rgw-nautiluss3.rook"
+  VINE_NRP_LLM_BASE_URL: "https://ellm.nrp-nautilus.io/v1"
+  # MLFLOW_TRACKING_URI, AWS_* keys, and *_API_KEY come from a K8s Secret.

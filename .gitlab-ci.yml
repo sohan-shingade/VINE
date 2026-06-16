@@ -1,0 +1,40 @@
+# GitLab CI for gitlab.nrp-nautilus.io. Mirrors the `make check` gate.
+# Heavy GPU training does NOT run here — it runs interactively on NRP GPU pods.
+stages: [lint, test, build]
+
+variables:
+  UV_CACHE_DIR: "$CI_PROJECT_DIR/.uv-cache"
+
+default:
+  image: ghcr.io/astral-sh/uv:python3.11-bookworm-slim
+  cache:
+    key: uv-$CI_COMMIT_REF_SLUG
+    paths: [".uv-cache"]
+  before_script:
+    - uv sync --extra dev
+
+lint:
+  stage: lint
+  script:
+    - uv run ruff check .
+    - uv run ruff format --check .
+    - uv run mypy
+
+test:
+  stage: test
+  script:
+    - uv run pytest -m "not slow and not gpu" --cov=vine --cov-report=term-missing
+  coverage: '/TOTAL.*\s+(\d+%)$/'
+
+# Build + push inference images only on tags (see docker/ and k8s/).
+build-images:
+  stage: build
+  image: docker:27
+  services: [docker:27-dind]
+  rules:
+    - if: $CI_COMMIT_TAG
+  before_script: []
+  script:
+    - for t in irrigation cv harvest; do
+        docker build -f docker/$t.Dockerfile -t $CI_REGISTRY_IMAGE/$t:$CI_COMMIT_TAG . ;
+      done

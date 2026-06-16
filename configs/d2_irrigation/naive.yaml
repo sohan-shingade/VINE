@@ -1,0 +1,6 @@
+# Hypothesis: establish the floor. Naive persistence + fixed threshold rule.
+# Every learned model must beat this on held-out data (ADR-0003).
+model: naive
+horizons_h: [6, 12, 24, 48]
+features: [soil_moisture]
+irrigate_below: 25.0

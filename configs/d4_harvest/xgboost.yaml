@@ -1,0 +1,9 @@
+# Hypothesis: gradient-boosted trees on engineered features (GDD, Brix, NDVI
+# trend) predict days-to-harvest better than the "same date as last year"
+# baseline. Note: labels are sparse (~1/block/year) — may stay exploratory.
+model: xgboost
+target: days_to_harvest
+features: [gdd, brix, ndvi_trend, soil_moisture, weather]
+n_estimators: 300
+max_depth: 5
+lr: 0.05
