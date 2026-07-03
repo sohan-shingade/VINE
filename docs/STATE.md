@@ -100,6 +100,15 @@ winter/dormant; the useful growing-season flights are Aug (pre-harvest) + Oct
   but reject our west-pool creds and have no IHV buckets under obvious names.
   → Imagery stays blocked; add mentor Q: is imagery being migrated off NextCloud /
   what's up with s3-west?
+- **2026-07-02 (later)** — **Root cause found** via the Nautilus Support Matrix feed
+  (`https://nrp.ai/api/matrix-feed`, backs the nrp.ai/live news page): NRP announced
+  **Ceph upgrades for 2026-07-02, 10:00–16:00 Pacific, affecting CephFS, RBD, and S3**
+  — today's s3-west 503 is planned maintenance, not an outage or migration (creds
+  confirmed fine: anonymous requests get the same HAProxy 503). Also: NextCloud was
+  declared **back up on 2026-06-24** ("previews return gradually"), so the imagery
+  share is likely fine once today's Ceph work finishes. Re-probed 20:30 Pacific:
+  both still 503 (upgrade running long). **→ Retry NextCloud + s3-west tomorrow;
+  imagery download may finally be unblocked.**
 
 ## Open questions for mentor
 
@@ -111,10 +120,10 @@ winter/dormant; the useful growing-season flights are Aug (pre-harvest) + Oct
 4. **NRP access** — sponsor my kubeconfig for namespace `ihv`; confirm storage
    classes + GPU reservation process.
 5. **Security** — the InfluxDB token is committed in the public starter repo; rotate?
-6. **Storage outage / migration?** (2026-07-02) `s3-west` is 503 endpoint-wide and
-   NextCloud has been 503 for ~2 weeks — is Ceph-west down / being migrated? Is
-   imagery moving to S3, and if so which endpoint/bucket? Our `ihv-vine` DVC remote
-   lives on s3-west — do we need to move it (needs central/east-pool creds)?
+6. ~~Storage outage / migration?~~ **Resolved 2026-07-02:** it was the announced
+   Ceph upgrade (July 2, 10:00–16:00 Pacific, CephFS/RBD/S3); NextCloud itself was
+   fixed 2026-06-24 per Nautilus Support. No migration; creds fine. Monitor
+   `https://nrp.ai/live` (or the Matrix room) for cluster news going forward.
 
 ## Next actions (when resuming)
 
