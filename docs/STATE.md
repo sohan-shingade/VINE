@@ -21,11 +21,11 @@ Everything here has been **tested and confirmed working** from this machine
 | Resource | Endpoint | Access | Verified |
 |----------|----------|--------|----------|
 | Sensors (InfluxDB) | `https://nrp-thingsboard-influxdb.nrp-nautilus.io` org `Iron Horse Vineyards`, bucket `ihv` | Flux + `VINE_INFLUX_TOKEN` | ✅ pulled 7,615 rows; `vine ingest` works |
-| NRP S3 (Pool West) | `https://s3-west.nrp-nautilus.io`, bucket `ihv-vine` | `AWS_ACCESS_KEY_ID/SECRET` in `.env` | ✅ created bucket, read/write round-trip |
-| DVC remote | `s3://ihv-vine/dvc` on NRP S3 | configured `.dvc/config` + creds `.dvc/config.local` | ✅ pushed sensor snapshots |
+| NRP S3 (Pool West) | `https://s3-west.nrp-nautilus.io`, bucket `ihv-vine` | `AWS_ACCESS_KEY_ID/SECRET` in `.env` | ⚠️ was ✅ (bucket + round-trip); **503 endpoint-wide on 2026-07-02** (central/east up, but our creds are west-pool) |
+| DVC remote | `s3://ihv-vine/dvc` on NRP S3 | configured `.dvc/config` + creds `.dvc/config.local` | ✅ pushed sensor snapshots (unreachable while s3-west is 503) |
 | NDP catalog API | `https://nationaldataplatform.org/catalog/api/3/action/` | public, no auth | ✅ found the 2 IHV datasets |
-| Imagery STAC | `https://ndp-test.sdsc.edu/stac/collections/IHV_DJI_MULTISPECTRAL_DCIM` | public | ✅ inventoried 9,295 captures |
-| Imagery files | `https://nextcloud.nrp-nautilus.io/s/ieAqEKDDKeYq9q4` | public share | ⛔ HTTP 503 maintenance (retry later) |
+| Imagery STAC | `https://ndp-test.sdsc.edu/stac/collections/IHV_DJI_MULTISPECTRAL_DCIM` | public | ⚠️ **flapping 2026-07-02**: load-balanced replicas disagree — some return the collection + items, some 404/empty; retry until a good replica answers |
+| Imagery files | `https://nextcloud.nrp-nautilus.io/s/ieAqEKDDKeYq9q4` | public share | ⛔ HTTP 503 since ~2026-06-21 (share, WebDAV, root all down; STAC asset hrefs still route through it — no S3 mirror found) |
 | Weather (historical) | `https://archive-api.open-meteo.com/v1/archive` | public, no key | ✅ daily tmax/tmin/precip/ET₀ at vineyard coords |
 | NRP managed LLM | `https://ellm.nrp-nautilus.io/v1` | `VINE_NRP_LLM_API_KEY` in `.env` | ✅ lists 11 models |
 | Kubernetes (`ihv` ns) | Nautilus cluster | kubeconfig (not yet obtained) | ⬜ not set up — only needed to run jobs *on* NRP |
@@ -39,8 +39,9 @@ imagery: `Cd, H5, H4, E, H2, Q, Ce`.
 |---|-------|--------------------|---------------|--------|
 | 1 | Sensors | InfluxDB bucket `ihv` | `vine.d1_pipeline.InfluxReader` (Flux) | ✅ working |
 | 2 | Drone imagery | NextCloud files + STAC index | STAC API now; NextCloud download when up | ✅ scoped, files behind maintenance |
-| 3 | Historical harvest/yield/irrigation | **NOT in InfluxDB or NDP** — vineyard/mentor | TBD | ⚠️ ask mentor; only D4 needs it |
-| 4 | Weather (hist + forecast) | Open-Meteo / gridMET (hist), Open-Meteo / python-awips (forecast) | Open-Meteo archive API ✅ | ✅ source confirmed |
+| 3 | Historical harvest/yield/irrigation | **NOT in InfluxDB or NDP** — vineyard/mentor | TBD | ⏸️ **skipped for now** (only D4 needs it; ask mentor) |
+| 4 | Weather (hist) | Open-Meteo archive (ERA5) | `vine.d1_pipeline.fetch_historical` | ✅ **reader built + tested + verified live** |
+| 4f | Weather (forecast) | Open-Meteo forecast / python-awips | TBD | ☐ not built (needed for D2 lead time) |
 
 **Imagery inventory (from STAC, 2026-06-16):** 9,295 capture points, 11 flights
 (2025-08-27 → 2026-01-08), DJI Mavic 3 Multispectral. Each capture: `visual` (RGB)
@@ -56,7 +57,7 @@ winter/dormant; the useful growing-season flights are Aug (pre-harvest) + Oct
 | D | Deliverable | Status | Notes |
 |---|-------------|--------|-------|
 | — | Repo + Claude Code scaffold + wiki | ☑ | builds green: ruff/mypy/17 tests |
-| D1 | Data pipeline | ◐ | inputs scoped + sensor ingestion working; imagery/weather/historical not built |
+| D1 | Data pipeline | ◐ | **sensor path done + tested** (ingest→regularize→gap/range flags→rolling/lag features→weather & GDD join); weather reader done; imagery blocked (NextCloud 503 + no orthomosaics/polygons); historical skipped |
 | D2 | Irrigation models | ☐ | |
 | D3 | Plant-health CV | ☐ | |
 | D4 | Harvest timing | ☐ | depends on input #3; descopable to exploratory |
@@ -74,6 +75,31 @@ winter/dormant; the useful growing-season flights are Aug (pre-harvest) + Oct
   + sensors; inventoried 9,295 imagery captures.
 - **2026-06-16** — Confirmed Open-Meteo historical weather + ET₀. Recorded
   weather decision (ADR-0009).
+- **2026-06-21** — Built D1 weather reader (`d1_pipeline/weather.py`, input #4):
+  Open-Meteo archive client (pure param/parse helpers + `fetch_historical`),
+  config coords/URL, 4 unit tests. Verified live (8 daily rows tmax/tmin/precip/ET₀
+  at vineyard coords). `make check` green (21 tests).
+- **2026-06-21** — Built interactive course website (`course-site/`, zero-dep):
+  18 modules teaching every prereq → all deliverables; animated diagrams, NDVI demo.
+- **2026-06-21** — Built + tested the **D1 sensor path** end to end: `pipeline.py`
+  (`build_sensor_features`: regularize → gap/range flags → rolling/lag features;
+  `attach_weather`: daily weather ffill + cumulative GDD). Wired weather into
+  `vine ingest --weather-days N`. Fixed two real bugs found on live data:
+  (a) tz-aware sensor index vs tz-naive weather, (b) InfluxDB pivot returning
+  numeric readings as strings → coerce in `influx.read` + assembler. 34 tests green.
+  Verified on real snapshot: 73 hourly rows → 42 feature cols, weather+GDD joined.
+- **2026-06-21** — Re-probed imagery: NextCloud `nextcloud.nrp-nautilus.io` still
+  **503** (share + WebDAV). `status.nextcloud.com` is the unrelated Nextcloud-GmbH
+  page, not our instance. STAC up but all asset hrefs route through NextCloud.
+- **2026-07-02** — Re-probed imagery + checked the "moved to S3?" theory: **no S3
+  mirror found.** NextCloud still 503 (share/WebDAV/root). STAC replicas flapping
+  (collection listed + items served on some hits, 404/empty on others); asset hrefs
+  still point at NextCloud. NDP catalog dataset unchanged (last modified 2026-03-29),
+  still links NextCloud + STAC. **New:** `s3-west.nrp-nautilus.io` itself is 503
+  endpoint-wide (our `ihv-vine` bucket + DVC remote unreachable); s3-central/east up
+  but reject our west-pool creds and have no IHV buckets under obvious names.
+  → Imagery stays blocked; add mentor Q: is imagery being migrated off NextCloud /
+  what's up with s3-west?
 
 ## Open questions for mentor
 
@@ -85,13 +111,24 @@ winter/dormant; the useful growing-season flights are Aug (pre-harvest) + Oct
 4. **NRP access** — sponsor my kubeconfig for namespace `ihv`; confirm storage
    classes + GPU reservation process.
 5. **Security** — the InfluxDB token is committed in the public starter repo; rotate?
+6. **Storage outage / migration?** (2026-07-02) `s3-west` is 503 endpoint-wide and
+   NextCloud has been 503 for ~2 weeks — is Ceph-west down / being migrated? Is
+   imagery moving to S3, and if so which endpoint/bucket? Our `ihv-vine` DVC remote
+   lives on s3-west — do we need to move it (needs central/east-pool creds)?
 
 ## Next actions (when resuming)
 
-1. Get the open questions answered by mentor.
-2. (No-blocker) Build D1 sensor path properly: regularize → gap-flag → features.
-3. Add a thin Open-Meteo weather reader (input #4) — confirmed working.
-4. Set up kubeconfig to run ingestion as the `ihv` CronJob (optional until scaling).
+1. ✅ DONE — sensor path built + tested; weather reader + ingest wiring done.
+2. ⏸️ **Imagery (input #2) is BLOCKED** — `imagery.py`/`geo.py` are stubs. Needs
+   (a) NextCloud back up OR an S3 path to the files, (b) stitched orthomosaics
+   (raw is per-photo), (c) vineyard-block polygons. All mentor Qs. Scaffold only.
+3. ⏸️ Historical harvest (input #3) **skipped** per scope decision (mentor Q for D4).
+4. (Optional) Weather **forecast** reader (Open-Meteo forecast) for D2 lead time.
+5. Start **D2 irrigation** on the now-ready sensor+weather feature frame (persistence
+   baseline first), or set up kubeconfig for the `ihv` CronJob.
+
+**Done since last:** weather reader + full sensor path (features + weather/GDD join),
+built/tested/verified on live data. Imagery re-confirmed blocked (NextCloud 503).
 
 ## How we keep state across sessions
 
