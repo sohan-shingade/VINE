@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>The VINE Course — build the GSoC project from zero</title>
+  <meta name="description" content="An interactive course that teaches every prerequisite to build VINE Track 2: ETL, time-series, geospatial, Kubernetes, the NRP platform, and ML/MLOps." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <!-- animated grape-vine background canvas -->
+  <canvas id="bg-canvas" aria-hidden="true"></canvas>
+
+  <!-- top reading-progress bar -->
+  <div id="read-progress" aria-hidden="true"></div>
+
+  <!-- sidebar nav -->
+  <aside id="sidebar">
+    <a href="#/" class="brand">
+      <span class="brand-mark">🍇</span>
+      <span class="brand-text">VINE<small>course</small></span>
+    </a>
+    <div class="progress-ring-wrap">
+      <svg class="progress-ring" viewBox="0 0 120 120" width="72" height="72">
+        <circle class="ring-bg" cx="60" cy="60" r="52" />
+        <circle class="ring-fg" id="ring-fg" cx="60" cy="60" r="52" />
+      </svg>
+      <div class="progress-ring-label"><span id="progress-pct">0%</span><small>complete</small></div>
+    </div>
+    <nav id="nav"></nav>
+    <button id="reset-progress" title="Reset your progress">reset progress</button>
+  </aside>
+
+  <button id="menu-toggle" aria-label="Toggle menu">☰</button>
+
+  <!-- main content -->
+  <main id="content" tabindex="-1"></main>
+
+  <button id="theme-toggle" aria-label="Toggle light/dark">◐</button>
+
+  <script src="js/markdown.js"></script>
+  <script src="js/diagrams.js"></script>
+  <script src="js/content.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>

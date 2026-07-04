@@ -31,3 +31,12 @@ def gap_report(df: pd.DataFrame, freq: str = "1h") -> pd.Series:
     """Count missing bins per column on a regular `freq` grid (a completeness report)."""
     full = df.resample(freq).mean(numeric_only=True)
     return full.isna().sum()
+
+
+def flag_gaps(df: pd.DataFrame) -> pd.DataFrame:
+    """Return a boolean frame: True where a value is missing (a gap).
+
+    Run on an already-regularized grid (see `sensors.resample`): a NaN there means
+    "no reading in this bin," which we flag rather than silently impute.
+    """
+    return df.isna()

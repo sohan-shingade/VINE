@@ -16,6 +16,7 @@ import pandas as pd
 
 from vine.common import get_logger, settings
 from vine.d1_pipeline.influx import DEVICES, InfluxReader
+from vine.d1_pipeline.weather import fetch_historical
 
 log = get_logger(__name__)
 
@@ -65,3 +66,24 @@ def load_snapshot(device: str, data_dir: Path | None = None) -> pd.DataFrame:
     """Load a previously ingested device snapshot from `data/raw/sensors/`."""
     data_dir = data_dir or (settings.data_dir / "raw" / "sensors")
     return pd.read_parquet(data_dir / f"{device}.parquet")
+
+
+def ingest_weather(days: int = 30, out_dir: Path | None = None) -> int:
+    """Snapshot the last `days` of historical weather to `data/raw/weather/`.
+
+    Uses the Open-Meteo archive at the configured vineyard coordinates. Returns
+    the number of daily rows written. The archive lags ~5 days, so the window is
+    [today-days, today].
+    """
+    out_dir = out_dir or (settings.data_dir / "raw" / "weather")
+    out_dir.mkdir(parents=True, exist_ok=True)
+
+    today = pd.Timestamp.utcnow().normalize()
+    start = (today - pd.Timedelta(days=days)).strftime("%Y-%m-%d")
+    end = today.strftime("%Y-%m-%d")
+
+    df = fetch_historical(start, end)
+    path = out_dir / f"weather_{start}_{end}.parquet"
+    df.to_parquet(path)
+    log.info("wrote weather snapshot", rows=len(df), path=str(path))
+    return len(df)

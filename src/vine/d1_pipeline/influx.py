@@ -135,5 +135,10 @@ class InfluxReader:
         if tidy:
             df = df.drop(columns=[c for c in _META_COLS if c in df])
             df = df.rename(columns=_RAW_TO_FRIENDLY)
+        # The Flux pivot can return numeric measurements as strings; coerce so
+        # snapshots are numeric. Non-numeric stays NaN (a gap), never silent text.
+        for col in df.columns:
+            if col != "device_name":
+                df[col] = pd.to_numeric(df[col], errors="coerce")
         log.info("influx read", device=device_name, rows=len(df))
         return df

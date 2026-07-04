@@ -46,6 +46,12 @@ class Settings(BaseSettings):
     ndp_org: str = "iron-horse-vineyards"
     ndp_api_key: str = ""  # set VINE_NDP_API_KEY for private datasets
 
+    # Weather — historical archive via Open-Meteo (ERA5), free, no key.
+    # Gridded to the vineyard coordinates (see ADR-0009). Forecast TBD.
+    weather_archive_url: str = "https://archive-api.open-meteo.com/v1/archive"
+    vineyard_lat: float = 38.457  # Iron Horse Vineyards, Sebastopol CA
+    vineyard_lon: float = -122.896
+
     # NRP object storage (S3-compatible Ceph). Creds from the NRP portal
     # /s3token/ via standard AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY.
     s3_endpoint_url: str = "https://s3-west.nrp-nautilus.io"

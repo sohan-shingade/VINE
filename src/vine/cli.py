@@ -27,6 +27,12 @@ def main(argv: list[str] | None = None) -> int:
 
     ing = sub.add_parser("ingest", help="D1: pull IHV sensors from InfluxDB to data/raw")
     ing.add_argument("--start", default="-7d", help="Flux range start (e.g. -7d, -1w)")
+    ing.add_argument(
+        "--weather-days",
+        type=int,
+        default=0,
+        help="also snapshot the last N days of Open-Meteo weather (0 = skip)",
+    )
 
     train = sub.add_parser("train", help="train a model track")
     train.add_argument("track", choices=["irrigation", "vision", "harvest"])
@@ -42,12 +48,15 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     if args.command == "ingest":
-        from vine.d1_pipeline.ingest import ingest_all
+        from vine.d1_pipeline.ingest import ingest_all, ingest_weather
 
         summary = ingest_all(start=args.start)
         for device, rows in sorted(summary.items()):
             print(f"  {device:<24} {rows:>8} rows")
         print(f"total: {sum(summary.values())} rows across {len(summary)} devices")
+        if args.weather_days > 0:
+            rows = ingest_weather(days=args.weather_days)
+            print(f"weather: {rows} daily rows (last {args.weather_days}d)")
         return 0
 
     seed = seed_everything()
