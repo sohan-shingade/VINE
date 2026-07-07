@@ -1,4 +1,4 @@
-"""Typed config for irrigation experiments (validates configs/irrigation/*.yaml)."""
+"""Typed config for irrigation experiments (validates configs/d2_irrigation/*.yaml)."""
 
 from __future__ import annotations
 
@@ -6,9 +6,14 @@ from pydantic import BaseModel, Field
 
 
 class IrrigationConfig(BaseModel):
-    model: str = Field(description="naive | threshold | arima | prophet | lstm")
+    model: str = Field(description="naive | ridge | arima | prophet | lstm")
+    device: str = "SE01-LS-1"  # which sensor's snapshot to forecast
+    target: str = "soil_water"  # column to forecast (a KIND_MEASUREMENTS name)
+    features: list[str] = ["soil_water", "soil_temperature", "soil_conductivity"]
     horizons_h: list[int] = [6, 12, 24, 48]
-    features: list[str] = ["soil_moisture", "temperature", "humidity"]
+    n_folds: int = 5  # walk-forward folds over the holdout half
+    # Ridge-only knobs
+    alpha: float = 1.0
     # LSTM-only knobs (ignored by classical models)
     window_h: int = 72
     hidden: int = 128

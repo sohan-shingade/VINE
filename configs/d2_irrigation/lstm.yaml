@@ -1,9 +1,11 @@
 # Hypothesis: an LSTM encoder-decoder captures nonlinear soil-moisture dynamics
 # better than ARIMA/Prophet, improving MAE at the 24h/48h horizons.
-# Baseline to beat: configs/irrigation/naive.yaml + the ARIMA/Prophet runs.
+# Baseline to beat: configs/d2_irrigation/naive.yaml + the ridge/classical runs.
 model: lstm
+device: SE01-LS-1
+target: soil_water
 horizons_h: [6, 12, 24, 48]
-features: [soil_moisture, temperature, humidity]
+features: [soil_water, soil_temperature, soil_conductivity]
 window_h: 72
 hidden: 128
 layers: 2

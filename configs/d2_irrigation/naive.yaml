@@ -1,6 +1,10 @@
-# Hypothesis: establish the floor. Naive persistence + fixed threshold rule.
-# Every learned model must beat this on held-out data (ADR-0003).
+# Hypothesis: establish the floor. Persistence + seasonal-naive + hourly
+# climatology, walk-forward over the holdout half. Every learned model must
+# beat this on held-out data (ADR-0003).
 model: naive
+device: SE01-LS-1
+target: soil_water
+features: [soil_water, soil_temperature, soil_conductivity]
 horizons_h: [6, 12, 24, 48]
-features: [soil_moisture]
+n_folds: 5
 irrigate_below: 25.0

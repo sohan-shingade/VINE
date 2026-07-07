@@ -1,0 +1,11 @@
+# Hypothesis: standardized ridge on the D1 feature frame (lags, rolling stats,
+# weather/GDD) beats persistence and seasonal-naive at 6-48h horizons by using
+# recent dynamics + forcing, without LSTM complexity. Baseline: naive.yaml.
+model: ridge
+device: SE01-LS-1
+target: soil_water
+features: [soil_water, soil_temperature, soil_conductivity]
+horizons_h: [6, 12, 24, 48]
+n_folds: 5
+alpha: 1.0
+irrigate_below: 25.0
