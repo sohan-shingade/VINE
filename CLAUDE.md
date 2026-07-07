@@ -28,6 +28,9 @@ Full context lives in the wiki — read before non-trivial work:
 - `src/` layout, single package `vine`, one subpackage per deliverable
 
 ## Commands (use these, don't guess)
+- **Consult `docs/codemap/*.md` shards BEFORE Reading source** — one shard per
+  package (signatures + docstrings + import edges). `make codemap` regenerates
+  them; do it after any refactor, in the same commit.
 - `make setup` — create venv, install all extras, install pre-commit
 - `make check` — lint + type + test. **The gate. Run before every commit/PR.**
 - `make fmt` — auto-format and autofix (ruff)

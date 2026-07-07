@@ -2,7 +2,7 @@
 # Every target is also what CI runs, so "green locally" == "green in CI".
 
 .DEFAULT_GOAL := help
-.PHONY: help setup fmt lint type test check data train serve docs clean
+.PHONY: help setup fmt lint type test check data train serve docs clean codemap
 
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | \
@@ -27,6 +27,9 @@ test: ## Run tests (skip slow/gpu)
 	uv run pytest -m "not slow and not gpu"
 
 check: lint type test ## Full local gate — run before every commit/PR
+
+codemap: ## Regenerate docs/codemap/ shards (run after any refactor, same commit)
+	uv run python scripts/codemap.py
 
 serve: ## Run the FastAPI inference service locally
 	uv run uvicorn vine.d6_serving.app:app --reload
