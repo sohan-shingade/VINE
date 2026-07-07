@@ -3,15 +3,17 @@
 > **Single source of truth for "where are we."** Git-tracked so it survives any
 > session, machine, or context reset. **Any new session: read this first.**
 > Update it at the end of any session that changes status. Last updated:
-> **2026-07-06**. Phase: **D1/D2** (sensor path done; imagery just unblocked).
+> **2026-07-06**. Phase: **D1 code-complete → starting D2** (irrigation baselines).
 
 ## TL;DR — resume here
 
-The repo scaffold, Claude Code setup, and wiki are built. We are in the
-**understand-the-data** phase of D1. **Three of four data inputs are located and
-verified reachable; the pipeline itself is NOT built yet** (deliberately — we're
-scoping first). Next real work: confirm open questions with mentor, then build D1
-ingestion on the confirmed sources.
+**D1 is code-complete and live-verified** (2026-07-06): sensor path, weather,
+imagery (WebDAV flight index → captures → bands → NDVI), and block alignment
+(39 KMZ polygons, sensor→block join, windowed zonal stats) all work on real
+data — 48 tests green. The share had the "missing" orthomosaics + block
+polygons in `GIS/` all along. Only input #3 (historical records, D4-only)
+remains a mentor question. **Next real work: D2 irrigation baselines** on the
+sensor+weather feature frame.
 
 ## Verified facts & live endpoints
 
@@ -38,7 +40,7 @@ imagery: `Cd, H5, H4, E, H2, Q, Ce`.
 | # | Input | Source (confirmed) | How to get it | Status |
 |---|-------|--------------------|---------------|--------|
 | 1 | Sensors | InfluxDB bucket `ihv` | `vine.d1_pipeline.InfluxReader` (Flux) | ✅ working |
-| 2 | Drone imagery | NextCloud files + STAC index | STAC to enumerate; **NextCloud WebDAV to download** (files now reachable) | ✅ **files DOWNLOADABLE 2026-07-06**; still no orthomosaics/block polygons → `imagery.py`/`geo.py` still stubs |
+| 2 | Drone imagery | NextCloud share (WebDAV) — **not** STAC hrefs (stale) | `vine.d1_pipeline.imagery` (flight index → captures → band download) + `geo` (KMZ blocks, zonal stats) | ✅ **BUILT + LIVE-VERIFIED 2026-07-06** — orthomosaics & block polygons were on the share all along (`GIS/`) |
 | 3 | Historical harvest/yield/irrigation | **NOT in InfluxDB or NDP** — vineyard/mentor | TBD | ⏸️ **skipped for now** (only D4 needs it; ask mentor) |
 | 4 | Weather (hist) | Open-Meteo archive (ERA5) | `vine.d1_pipeline.fetch_historical` | ✅ **reader built + tested + verified live** |
 | 4f | Weather (forecast) | Open-Meteo forecast / python-awips | TBD | ☐ not built (needed for D2 lead time) |
@@ -57,7 +59,7 @@ winter/dormant; the useful growing-season flights are Aug (pre-harvest) + Oct
 | D | Deliverable | Status | Notes |
 |---|-------------|--------|-------|
 | — | Repo + Claude Code scaffold + wiki | ☑ | builds green: ruff/mypy/17 tests |
-| D1 | Data pipeline | ◐ | **sensor path done + tested** (ingest→regularize→gap/range flags→rolling/lag features→weather & GDD join); weather reader done; imagery blocked (NextCloud 503 + no orthomosaics/polygons); historical skipped |
+| D1 | Data pipeline | ☑ | **all three reachable inputs done + live-verified**: sensor path (ingest→flags→features→weather/GDD), weather reader, **imagery path** (WebDAV flight index → capture grouping → band download → NDVI) + **block alignment** (39 KMZ polygons, sensor→block join, windowed zonal stats). Historical (input #3) remains a mentor Q — D4-only. Weather *forecast* (4f) optional, for D2 lead time |
 | D2 | Irrigation models | ☐ | |
 | D3 | Plant-health CV | ☐ | |
 | D4 | Harvest timing | ☐ | depends on input #3; descopable to exploratory |
@@ -121,13 +123,33 @@ winter/dormant; the useful growing-season flights are Aug (pre-harvest) + Oct
   Downloading works; **stitched orthomosaics + block polygons still don't exist**
   (mentor Q), so `imagery.py`/`geo.py` remain stubs — the raw-file blocker is gone,
   the orthomosaic/geometry blocker is not.
+- **2026-07-06 (later)** — **D1 imagery + block alignment BUILT; D1 code-complete.**
+  Scout-mapped the whole share (brief: `docs/data/imagery-share-layout.md`) and found
+  the supposed blockers were already there: `GIS/IHV-2026-05-26.kmz` holds **39 block
+  polygons** (names match `_sorted_data/BLOCKS/` 1:1) **+ 182 points incl. sensor
+  locations**, and `GIS/` holds stitched **Pix4DFields orthomosaics** with NDVI/NDRE
+  computed (H-blocks 2025-08-29; whole-vineyard 2026-06-01, 46 GB) — no stitching
+  needed for those dates. Built: `webdav.py` (share client), `imagery.py` (flight
+  index — share placement is authoritative, STAC block attribution is stale/re-sorted;
+  capture grouping; size-checked band downloads), `geo.py` (stdlib KML→polygons,
+  windowed `zonal_stats`, `assign_sensors_to_blocks`). Live-verified: 34 flights
+  indexed; 582-capture flight grouped exactly; 4 bands downloaded + NDVI 0.272;
+  39/39 blocks loaded; 47 sensors joined to blocks; zonal stats on the real 1 m DSM
+  hit 39/39. `vine imagery` CLI added. **48 tests green** (was 34), ruff+mypy clean.
+  Also: codemap shards (`make codemap`, consult before Reading source), Serena MCP
+  registered. Note: `_unsorted/M3M/` has ~120 newer flights (through 2026-07-03) not
+  yet sorted into blocks; growing-season coverage is still thin (mentor Q stands).
 
 ## Open questions for mentor
 
 1. **Historical records** (harvest dates, yields, irrigation logs) — do they exist,
    and where? Not in InfluxDB or NDP. (Drives D4 scope.)
-2. **Imagery** — when will NextCloud be back? Are stitched orthomosaics available,
-   or do we stitch the raw M3M photos ourselves? More growing-season flights coming?
+2. ~~Imagery availability~~ **Mostly resolved 2026-07-06:** NextCloud is back;
+   stitched Pix4D orthomosaics + block polygons were on the share (`GIS/`) all
+   along. **Remaining:** more growing-season flights coming? Will the ~120
+   `_unsorted/M3M/` flights (through 2026-07-03) get sorted into blocks — or
+   should we sort by GPS-vs-polygon ourselves? Is STAC going to be re-indexed
+   (its block attribution predates a re-sort and its inventory ends 2026-01-08)?
 3. **Labeled imagery** for plant stress/pest (D3) — does any exist?
 4. **NRP access** — sponsor my kubeconfig for namespace `ihv`; confirm storage
    classes + GPU reservation process.
@@ -140,20 +162,20 @@ winter/dormant; the useful growing-season flights are Aug (pre-harvest) + Oct
 ## Next actions (when resuming)
 
 1. ✅ DONE — sensor path built + tested; weather reader + ingest wiring done.
-2. ◐ **Imagery (input #2): raw files now DOWNLOADABLE** (NextCloud WebDAV back up
-   2026-07-06). Buildable now: `imagery.py` reader that walks the WebDAV tree (NOT
-   the stale STAC hrefs) to pull per-photo M3M multispectral. **Still blocked for a
-   usable pipeline:** (b) stitched orthomosaics (raw is per-photo) and (c) vineyard-
-   block polygons don't exist → `geo.py` block alignment still can't be built. (b)/(c)
-   are mentor Qs.
+2. ✅ DONE — imagery path + block alignment built & live-verified (see done log).
 3. ⏸️ Historical harvest (input #3) **skipped** per scope decision (mentor Q for D4).
-4. (Optional) Weather **forecast** reader (Open-Meteo forecast) for D2 lead time.
-5. Start **D2 irrigation** on the now-ready sensor+weather feature frame (persistence
-   baseline first), or set up kubeconfig for the `ihv` CronJob.
+4. **Start D2 irrigation** — the sensor+weather feature frame is ready, and per-block
+   NDVI/zonal features are now available too. Persistence baseline first (ADR-0003).
+5. (Optional) Weather **forecast** reader (Open-Meteo forecast) for D2 lead time.
+6. Re-verify the s3-west **bucket round-trip + DVC push** (root is 200 again; the
+   ihv-vine round-trip wasn't re-tested), and DVC-pin the new imagery snapshots
+   (`data/raw/imagery/`).
+7. D3 groundwork when ready: per-block patches from the 2025-08-29 H-blocks +
+   2026-06-01 whole-vineyard orthomosaic sets (NDVI/NDRE layers pre-computed).
 
-**Done since last:** verified imagery UNBLOCKED (NextCloud/WebDAV back, real JPEG
-downloaded) and s3-west back up after the Ceph upgrade. Prior: weather reader +
-full sensor path, built/tested/verified on live data (34 tests green).
+**Done since last:** D1 imagery + geo built end-to-end (share scouted → brief →
+webdav/imagery/geo modules → 48 tests green → live-verified on real flights, real
+KMZ, real DSM). D1 is code-complete; only input #3 (historical, D4-only) is open.
 
 ## How we keep state across sessions
 
