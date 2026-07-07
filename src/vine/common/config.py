@@ -46,6 +46,14 @@ class Settings(BaseSettings):
     ndp_org: str = "iron-horse-vineyards"
     ndp_api_key: str = ""  # set VINE_NDP_API_KEY for private datasets
 
+    # Drone imagery — NextCloud public share (files) + STAC catalog (index).
+    # The share token is the public link id, not a secret. STAC asset hrefs
+    # are stale — walk the share's WebDAV tree instead (vine.d1_pipeline.webdav).
+    imagery_share_url: str = "https://nextcloud.nrp-nautilus.io/s/ieAqEKDDKeYq9q4"
+    stac_collection_url: str = (
+        "https://ndp-test.sdsc.edu/stac/collections/IHV_DJI_MULTISPECTRAL_DCIM"
+    )
+
     # Weather — historical archive via Open-Meteo (ERA5), free, no key.
     # Gridded to the vineyard coordinates (see ADR-0009). Forecast TBD.
     weather_archive_url: str = "https://archive-api.open-meteo.com/v1/archive"
