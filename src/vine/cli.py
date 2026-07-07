@@ -78,9 +78,38 @@ def main(argv: list[str] | None = None) -> int:
             print(f"{args.flight}: {len(captures)} captures, {full} with all 4 bands")
         return 0
 
+    if args.command == "train" and args.track == "irrigation":
+        from pathlib import Path
+
+        import yaml
+
+        from vine.d1_pipeline.ingest import load_snapshot, load_weather_snapshot
+        from vine.d1_pipeline.pipeline import attach_weather, build_sensor_features
+        from vine.d2_irrigation import IrrigationConfig, run_experiment
+        from vine.d2_irrigation.experiment import log_to_mlflow
+
+        cfg = IrrigationConfig(**yaml.safe_load(Path(args.config).read_text()))
+        seed = seed_everything()
+        try:
+            raw = load_snapshot(cfg.device)
+        except FileNotFoundError:
+            print(
+                f"no snapshot for device {cfg.device!r} — run `vine ingest` first "
+                "(needs VINE_INFLUX_TOKEN in .env)"
+            )
+            return 1
+        frame = build_sensor_features(raw, value_cols=cfg.features)
+        weather = load_weather_snapshot()
+        if weather is not None:
+            frame = attach_weather(frame, weather)
+        results = run_experiment(frame, cfg)
+        print(results.to_string(index=False, float_format=lambda v: f"{v:.3f}"))
+        log_to_mlflow(cfg, results, seed)
+        return 0
+
     seed = seed_everything()
     log.info("starting", command=args.command, seed=seed)
-    # TODO: dispatch to vine.<track>.train / vine.d5_evaluation.run once implemented.
+    # TODO: dispatch to vine.d3_vision/.d4_harvest train + vine.d5_evaluation.run.
     log.warning("not implemented yet", command=args.command)
     return 0
 

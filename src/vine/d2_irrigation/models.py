@@ -27,14 +27,17 @@ def make_ridge(alpha: float = 1.0) -> FitPredict:
         from sklearn.pipeline import make_pipeline
         from sklearn.preprocessing import StandardScaler
 
-        ok = X_train.notna().all(axis=1) & y_train.notna()
+        # Drop features with no training signal (e.g. std over a 1-sample window
+        # is all-NaN on an hourly grid) — else no row is ever "complete".
+        cols = X_train.columns[X_train.notna().any()]
+        ok = X_train[cols].notna().all(axis=1) & y_train.notna()
         model = make_pipeline(StandardScaler(), Ridge(alpha=alpha))
-        model.fit(X_train[ok], y_train[ok])
+        model.fit(X_train.loc[ok, cols], y_train[ok])
 
         out = np.full(len(X_test), np.nan)
-        te = X_test.notna().all(axis=1).to_numpy()
+        te = X_test[cols].notna().all(axis=1).to_numpy()
         if te.any():
-            out[te] = model.predict(X_test[te])
+            out[te] = model.predict(X_test.loc[te, cols])
         return out
 
     return fit_predict

@@ -68,6 +68,20 @@ def load_snapshot(device: str, data_dir: Path | None = None) -> pd.DataFrame:
     return pd.read_parquet(data_dir / f"{device}.parquet")
 
 
+def load_weather_snapshot(data_dir: Path | None = None) -> pd.DataFrame | None:
+    """Load the most recent weather snapshot from `data/raw/weather/`, if any.
+
+    Snapshots are named `weather_<start>_<end>.parquet`, so lexicographic order
+    is chronological. Returns None when no snapshot exists (weather is optional
+    for the model tracks — they run on sensors alone, just with fewer features).
+    """
+    weather_dir = (data_dir or (settings.data_dir / "raw")) / "weather"
+    files = sorted(weather_dir.glob("weather_*.parquet"))
+    if not files:
+        return None
+    return pd.read_parquet(files[-1])
+
+
 def ingest_weather(days: int = 30, out_dir: Path | None = None) -> int:
     """Snapshot the last `days` of historical weather to `data/raw/weather/`.
 

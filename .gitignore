@@ -32,6 +32,7 @@ data/interim/*
 data/processed/*
 models/*
 mlruns/
+mlflow.db
 *.ckpt
 *.pt
 *.pth
