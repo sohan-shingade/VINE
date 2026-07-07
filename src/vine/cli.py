@@ -34,6 +34,9 @@ def main(argv: list[str] | None = None) -> int:
         help="also snapshot the last N days of Open-Meteo weather (0 = skip)",
     )
 
+    img = sub.add_parser("imagery", help="D1: index drone flights on the NextCloud share")
+    img.add_argument("--flight", default="", help="also list one flight's capture summary")
+
     train = sub.add_parser("train", help="train a model track")
     train.add_argument("track", choices=["irrigation", "vision", "harvest"])
     train.add_argument("config", help="path to YAML experiment config")
@@ -57,6 +60,22 @@ def main(argv: list[str] | None = None) -> int:
         if args.weather_days > 0:
             rows = ingest_weather(days=args.weather_days)
             print(f"weather: {rows} daily rows (last {args.weather_days}d)")
+        return 0
+
+    if args.command == "imagery":
+        from vine.common.config import settings
+        from vine.d1_pipeline.imagery import group_captures, index_flights
+        from vine.d1_pipeline.webdav import ShareClient
+
+        client = ShareClient(settings.imagery_share_url)
+        index = index_flights(client)
+        for f in sorted(index.values(), key=lambda f: (f.date, f.block)):
+            print(f"  {f.date}  {f.block:<12} {f.camera:<5} {f.folder}")
+        print(f"total: {len(index)} flights")
+        if args.flight:
+            captures = group_captures(client.ls(index[args.flight].path))
+            full = sum(1 for c in captures if len(c.bands) == 4)
+            print(f"{args.flight}: {len(captures)} captures, {full} with all 4 bands")
         return 0
 
     seed = seed_everything()
