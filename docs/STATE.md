@@ -3,7 +3,7 @@
 > **Single source of truth for "where are we."** Git-tracked so it survives any
 > session, machine, or context reset. **Any new session: read this first.**
 > Update it at the end of any session that changes status. Last updated:
-> **2026-06-16**. Phase: **Community Bonding** (understanding inputs).
+> **2026-07-06**. Phase: **D1/D2** (sensor path done; imagery just unblocked).
 
 ## TL;DR — resume here
 
@@ -21,11 +21,11 @@ Everything here has been **tested and confirmed working** from this machine
 | Resource | Endpoint | Access | Verified |
 |----------|----------|--------|----------|
 | Sensors (InfluxDB) | `https://nrp-thingsboard-influxdb.nrp-nautilus.io` org `Iron Horse Vineyards`, bucket `ihv` | Flux + `VINE_INFLUX_TOKEN` | ✅ pulled 7,615 rows; `vine ingest` works |
-| NRP S3 (Pool West) | `https://s3-west.nrp-nautilus.io`, bucket `ihv-vine` | `AWS_ACCESS_KEY_ID/SECRET` in `.env` | ⚠️ was ✅ (bucket + round-trip); **503 endpoint-wide on 2026-07-02** (central/east up, but our creds are west-pool) |
-| DVC remote | `s3://ihv-vine/dvc` on NRP S3 | configured `.dvc/config` + creds `.dvc/config.local` | ✅ pushed sensor snapshots (unreachable while s3-west is 503) |
+| NRP S3 (Pool West) | `https://s3-west.nrp-nautilus.io`, bucket `ihv-vine` | `AWS_ACCESS_KEY_ID/SECRET` in `.env` | ✅ **back up 2026-07-06** (root HTTP 200 after the 2026-07-02 Ceph upgrade; re-verify a bucket round-trip + DVC push) |
+| DVC remote | `s3://ihv-vine/dvc` on NRP S3 | configured `.dvc/config` + creds `.dvc/config.local` | ✅ pushed sensor snapshots (s3-west reachable again 2026-07-06) |
 | NDP catalog API | `https://nationaldataplatform.org/catalog/api/3/action/` | public, no auth | ✅ found the 2 IHV datasets |
-| Imagery STAC | `https://ndp-test.sdsc.edu/stac/collections/IHV_DJI_MULTISPECTRAL_DCIM` | public | ⚠️ **flapping 2026-07-02**: load-balanced replicas disagree — some return the collection + items, some 404/empty; retry until a good replica answers |
-| Imagery files | `https://nextcloud.nrp-nautilus.io/s/ieAqEKDDKeYq9q4` | public share | ⛔ HTTP 503 since ~2026-06-21 (share, WebDAV, root all down; STAC asset hrefs still route through it — no S3 mirror found) |
+| Imagery STAC | `https://ndp-test.sdsc.edu/stac/collections/IHV_DJI_MULTISPECTRAL_DCIM` | public | ✅ serves collection + items (2026-07-06); ⚠️ **asset `download?path=` hrefs are STALE** — point at flight subfolders that 404 (e.g. `..._002` vs real `..._001`); reconcile against the WebDAV tree, don't trust hrefs verbatim |
+| Imagery files | `https://nextcloud.nrp-nautilus.io/s/ieAqEKDDKeYq9q4` | public share | ✅ **back up 2026-07-06** (`maintenance:false`, WebDAV browsable, downloaded a real 10.9 MB JPEG 5280×3956); use WebDAV `public.php/webdav/` with share token as user |
 | Weather (historical) | `https://archive-api.open-meteo.com/v1/archive` | public, no key | ✅ daily tmax/tmin/precip/ET₀ at vineyard coords |
 | NRP managed LLM | `https://ellm.nrp-nautilus.io/v1` | `VINE_NRP_LLM_API_KEY` in `.env` | ✅ lists 11 models |
 | Kubernetes (`ihv` ns) | Nautilus cluster | kubeconfig (not yet obtained) | ⬜ not set up — only needed to run jobs *on* NRP |
@@ -38,7 +38,7 @@ imagery: `Cd, H5, H4, E, H2, Q, Ce`.
 | # | Input | Source (confirmed) | How to get it | Status |
 |---|-------|--------------------|---------------|--------|
 | 1 | Sensors | InfluxDB bucket `ihv` | `vine.d1_pipeline.InfluxReader` (Flux) | ✅ working |
-| 2 | Drone imagery | NextCloud files + STAC index | STAC API now; NextCloud download when up | ✅ scoped, files behind maintenance |
+| 2 | Drone imagery | NextCloud files + STAC index | STAC to enumerate; **NextCloud WebDAV to download** (files now reachable) | ✅ **files DOWNLOADABLE 2026-07-06**; still no orthomosaics/block polygons → `imagery.py`/`geo.py` still stubs |
 | 3 | Historical harvest/yield/irrigation | **NOT in InfluxDB or NDP** — vineyard/mentor | TBD | ⏸️ **skipped for now** (only D4 needs it; ask mentor) |
 | 4 | Weather (hist) | Open-Meteo archive (ERA5) | `vine.d1_pipeline.fetch_historical` | ✅ **reader built + tested + verified live** |
 | 4f | Weather (forecast) | Open-Meteo forecast / python-awips | TBD | ☐ not built (needed for D2 lead time) |
@@ -109,6 +109,18 @@ winter/dormant; the useful growing-season flights are Aug (pre-harvest) + Oct
   share is likely fine once today's Ceph work finishes. Re-probed 20:30 Pacific:
   both still 503 (upgrade running long). **→ Retry NextCloud + s3-west tomorrow;
   imagery download may finally be unblocked.**
+- **2026-07-06** — **Imagery UNBLOCKED — verified end to end.** NextCloud is back
+  (`status.php` → `maintenance:false`, v33.0.5); public-share **WebDAV** browsable
+  (207, full tree: `_sorted_data/BLOCKS/…`, `GIS/`, `sensor reference/`); STAC serves
+  the collection + items; **downloaded a real 10.9 MB JPEG (5280×3956)** from
+  `H5/2026-01-08/m3m/images/` (570 files in that one flight). s3-west root back to
+  HTTP 200 too. **Gotcha:** STAC asset `download?path=` hrefs are STALE — they point
+  at flight subfolders that 404 (e.g. `DJI_…_002` vs the real `…_001`, plus an
+  `images/` subfolder STAC doesn't name) → the D1 imagery reader must walk the
+  WebDAV tree / reconcile STAC item IDs against real folder names, not trust hrefs.
+  Downloading works; **stitched orthomosaics + block polygons still don't exist**
+  (mentor Q), so `imagery.py`/`geo.py` remain stubs — the raw-file blocker is gone,
+  the orthomosaic/geometry blocker is not.
 
 ## Open questions for mentor
 
@@ -128,16 +140,20 @@ winter/dormant; the useful growing-season flights are Aug (pre-harvest) + Oct
 ## Next actions (when resuming)
 
 1. ✅ DONE — sensor path built + tested; weather reader + ingest wiring done.
-2. ⏸️ **Imagery (input #2) is BLOCKED** — `imagery.py`/`geo.py` are stubs. Needs
-   (a) NextCloud back up OR an S3 path to the files, (b) stitched orthomosaics
-   (raw is per-photo), (c) vineyard-block polygons. All mentor Qs. Scaffold only.
+2. ◐ **Imagery (input #2): raw files now DOWNLOADABLE** (NextCloud WebDAV back up
+   2026-07-06). Buildable now: `imagery.py` reader that walks the WebDAV tree (NOT
+   the stale STAC hrefs) to pull per-photo M3M multispectral. **Still blocked for a
+   usable pipeline:** (b) stitched orthomosaics (raw is per-photo) and (c) vineyard-
+   block polygons don't exist → `geo.py` block alignment still can't be built. (b)/(c)
+   are mentor Qs.
 3. ⏸️ Historical harvest (input #3) **skipped** per scope decision (mentor Q for D4).
 4. (Optional) Weather **forecast** reader (Open-Meteo forecast) for D2 lead time.
 5. Start **D2 irrigation** on the now-ready sensor+weather feature frame (persistence
    baseline first), or set up kubeconfig for the `ihv` CronJob.
 
-**Done since last:** weather reader + full sensor path (features + weather/GDD join),
-built/tested/verified on live data. Imagery re-confirmed blocked (NextCloud 503).
+**Done since last:** verified imagery UNBLOCKED (NextCloud/WebDAV back, real JPEG
+downloaded) and s3-west back up after the Ceph upgrade. Prior: weather reader +
+full sensor path, built/tested/verified on live data (34 tests green).
 
 ## How we keep state across sessions
 
