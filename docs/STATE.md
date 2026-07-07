@@ -3,33 +3,38 @@
 > **Single source of truth for "where are we."** Git-tracked so it survives any
 > session, machine, or context reset. **Any new session: read this first.**
 > Update it at the end of any session that changes status. Last updated:
-> **2026-07-06**. Phase: **D1 code-complete → starting D2** (irrigation baselines).
+> **2026-07-06 (evening)**. Phase: **D2 built, live eval blocked on secrets**.
 
 ## TL;DR — resume here
 
-**D1 is code-complete and live-verified** (2026-07-06): sensor path, weather,
-imagery (WebDAV flight index → captures → bands → NDVI), and block alignment
-(39 KMZ polygons, sensor→block join, windowed zonal stats) all work on real
-data — 48 tests green. The share had the "missing" orthomosaics + block
-polygons in `GIS/` all along. Only input #3 (historical records, D4-only)
-remains a mentor question. **Next real work: D2 irrigation baselines** on the
-sensor+weather feature frame.
+**D1 is code-complete and live-verified; D2 is built and verified on synthetic
+data** (2026-07-06): walk-forward harness (D5), baselines (persistence /
+seasonal-naive / hourly climatology), ridge rung, and `vine train irrigation
+<config>` all work end to end — 67 tests green. **BUT: the 2026-07-04 machine
+wipe lost `.env` and `.dvc/config.local`** — no InfluxDB token, no S3 keys, no
+local DVC cache → cannot pull sensor data or DVC snapshots. **First action:
+restore secrets** (NRP portal `/s3token/`, Influx token; names in
+`.env.example`), then `vine ingest --start=-365d --weather-days 400` and
+`vine train irrigation configs/d2_irrigation/ridge.yaml` for the real table.
 
 ## Verified facts & live endpoints
 
-Everything here has been **tested and confirmed working** from this machine
-(secrets live in `.env`, gitignored — never commit them).
+Everything here was **tested and confirmed working** from this machine at the
+noted date (secrets live in `.env`, gitignored — never commit them).
+⚠️ **2026-07-06: `.env` + `.dvc/config.local` were lost in the 2026-07-04
+machine wipe** — rows marked 🔑 need their secrets restored before they work
+again (endpoints themselves are fine; anonymous S3 GET → 403 as expected).
 
 | Resource | Endpoint | Access | Verified |
 |----------|----------|--------|----------|
-| Sensors (InfluxDB) | `https://nrp-thingsboard-influxdb.nrp-nautilus.io` org `Iron Horse Vineyards`, bucket `ihv` | Flux + `VINE_INFLUX_TOKEN` | ✅ pulled 7,615 rows; `vine ingest` works |
-| NRP S3 (Pool West) | `https://s3-west.nrp-nautilus.io`, bucket `ihv-vine` | `AWS_ACCESS_KEY_ID/SECRET` in `.env` | ✅ **back up 2026-07-06** (root HTTP 200 after the 2026-07-02 Ceph upgrade; re-verify a bucket round-trip + DVC push) |
-| DVC remote | `s3://ihv-vine/dvc` on NRP S3 | configured `.dvc/config` + creds `.dvc/config.local` | ✅ pushed sensor snapshots (s3-west reachable again 2026-07-06) |
+| Sensors (InfluxDB) | `https://nrp-thingsboard-influxdb.nrp-nautilus.io` org `Iron Horse Vineyards`, bucket `ihv` | Flux + `VINE_INFLUX_TOKEN` | 🔑 worked 2026-06-21 (7,615 rows); **token lost in wipe** — restore to re-ingest |
+| NRP S3 (Pool West) | `https://s3-west.nrp-nautilus.io`, bucket `ihv-vine` | `AWS_ACCESS_KEY_ID/SECRET` in `.env` | 🔑 endpoint back up 2026-07-06 (root 200); **keys lost in wipe** — portal `/s3token/` |
+| DVC remote | `s3://ihv-vine/dvc` on NRP S3 | configured `.dvc/config` + creds `.dvc/config.local` | 🔑 snapshots pushed 2026-06-16 are on the remote; **local creds + cache lost in wipe** — restore keys, then `dvc pull` |
 | NDP catalog API | `https://nationaldataplatform.org/catalog/api/3/action/` | public, no auth | ✅ found the 2 IHV datasets |
 | Imagery STAC | `https://ndp-test.sdsc.edu/stac/collections/IHV_DJI_MULTISPECTRAL_DCIM` | public | ✅ serves collection + items (2026-07-06); ⚠️ **asset `download?path=` hrefs are STALE** — point at flight subfolders that 404 (e.g. `..._002` vs real `..._001`); reconcile against the WebDAV tree, don't trust hrefs verbatim |
 | Imagery files | `https://nextcloud.nrp-nautilus.io/s/ieAqEKDDKeYq9q4` | public share | ✅ **back up 2026-07-06** (`maintenance:false`, WebDAV browsable, downloaded a real 10.9 MB JPEG 5280×3956); use WebDAV `public.php/webdav/` with share token as user |
 | Weather (historical) | `https://archive-api.open-meteo.com/v1/archive` | public, no key | ✅ daily tmax/tmin/precip/ET₀ at vineyard coords |
-| NRP managed LLM | `https://ellm.nrp-nautilus.io/v1` | `VINE_NRP_LLM_API_KEY` in `.env` | ✅ lists 11 models |
+| NRP managed LLM | `https://ellm.nrp-nautilus.io/v1` | `VINE_NRP_LLM_API_KEY` in `.env` | 🔑 worked 2026-06-16 (11 models); **key lost in wipe** — portal `/llmtoken/` (optional) |
 | Kubernetes (`ihv` ns) | Nautilus cluster | kubeconfig (not yet obtained) | ⬜ not set up — only needed to run jobs *on* NRP |
 
 Vineyard location: **38.457 N, −122.896 W** (Sebastopol, CA). Blocks seen in
@@ -60,10 +65,10 @@ winter/dormant; the useful growing-season flights are Aug (pre-harvest) + Oct
 |---|-------------|--------|-------|
 | — | Repo + Claude Code scaffold + wiki | ☑ | builds green: ruff/mypy/17 tests |
 | D1 | Data pipeline | ☑ | **all three reachable inputs done + live-verified**: sensor path (ingest→flags→features→weather/GDD), weather reader, **imagery path** (WebDAV flight index → capture grouping → band download → NDVI) + **block alignment** (39 KMZ polygons, sensor→block join, windowed zonal stats). Historical (input #3) remains a mentor Q — D4-only. Weather *forecast* (4f) optional, for D2 lead time |
-| D2 | Irrigation models | ☐ | |
+| D2 | Irrigation models | ◐ | **baseline ladder built + verified on synthetic data** (2026-07-06): persistence / seasonal-naive / hourly climatology baselines, ridge rung, config-driven walk-forward runner, `vine train irrigation <config>` CLI, MLflow logging. **Live eval blocked on restoring secrets** (see TL;DR). Then: ARIMA/LSTM rungs + weather-forecast lead time |
 | D3 | Plant-health CV | ☐ | |
 | D4 | Harvest timing | ☐ | depends on input #3; descopable to exploratory |
-| D5 | Evaluation report | ☐ | |
+| D5 | Evaluation report | ◐ | shared harness started: metrics + **walk-forward validation (expanding splits, causal eval, skill score)** — used by D2, reusable by D4 |
 | D6 | NRP deployment | ☐ | needs kubectl/kubeconfig |
 | D7 | Docs + devlog | ◐ | wiki live; devlog started |
 
@@ -139,6 +144,23 @@ winter/dormant; the useful growing-season flights are Aug (pre-harvest) + Oct
   Also: codemap shards (`make codemap`, consult before Reading source), Serena MCP
   registered. Note: `_unsorted/M3M/` has ~120 newer flights (through 2026-07-03) not
   yet sorted into blocks; growing-season coverage is still thin (mentor Q stands).
+- **2026-07-06 (evening)** — **D2 baseline ladder BUILT; discovered the secrets are
+  gone.** Tried `vine ingest --start=-365d` for the D2 target series → **no InfluxDB
+  token: `.env` and `.dvc/config.local` did not survive the 2026-07-04 machine wipe**
+  (local DVC cache empty too; anonymous S3 GET → 403; endpoints themselves fine).
+  Pivoted to building everything that doesn't need live data: **D5 walk-forward
+  harness** (`walkforward.py`: expanding splits, causal `walk_forward`, `skill`
+  score), **D2 baselines** (`seasonal_naive`, `climatology_hourly` added), **ridge
+  rung** (`models.py`), **config-driven runner** (`experiment.py` — target-time
+  alignment so baselines are pure shifts and models see `frame.shift(h)`; every
+  model scored on identical holdout rows; gaps masked, never imputed), MLflow
+  logging, `vine train irrigation <config>` CLI. Verified end-to-end on synthetic
+  snapshots (`VINE_DATA_DIR` override): full 4-model × 4-horizon table, sane
+  ordering (ridge best, seasonal≈persistence at 24/48 h). The e2e run caught a real
+  bug unit tests missed: `*_std_1h` rolling features are all-NaN on an hourly grid
+  → ridge had zero complete training rows; fixed (drops no-signal columns per fold,
+  test added). **67 tests green** (was 48). Configs updated to real column names
+  (`soil_water`, device `SE01-LS-1`); `ridge.yaml` added.
 
 ## Open questions for mentor
 
@@ -161,21 +183,27 @@ winter/dormant; the useful growing-season flights are Aug (pre-harvest) + Oct
 
 ## Next actions (when resuming)
 
-1. ✅ DONE — sensor path built + tested; weather reader + ingest wiring done.
-2. ✅ DONE — imagery path + block alignment built & live-verified (see done log).
-3. ⏸️ Historical harvest (input #3) **skipped** per scope decision (mentor Q for D4).
-4. **Start D2 irrigation** — the sensor+weather feature frame is ready, and per-block
-   NDVI/zonal features are now available too. Persistence baseline first (ADR-0003).
-5. (Optional) Weather **forecast** reader (Open-Meteo forecast) for D2 lead time.
-6. Re-verify the s3-west **bucket round-trip + DVC push** (root is 200 again; the
-   ihv-vine round-trip wasn't re-tested), and DVC-pin the new imagery snapshots
-   (`data/raw/imagery/`).
-7. D3 groundwork when ready: per-block patches from the 2025-08-29 H-blocks +
+1. **🔑 Restore secrets (human step, blocks everything live):** NRP portal
+   `/s3token/` → `AWS_ACCESS_KEY_ID/SECRET`; InfluxDB `VINE_INFLUX_TOKEN` (NRP
+   secret / mentor); optional `/llmtoken/`. Variable names in `.env.example`;
+   put them in `.env` (gitignored). Then `.dvc/config.local` for the DVC remote.
+2. **Live D2 eval** (one command each once secrets are back):
+   `uv run vine ingest --start=-365d --weather-days 400`, then
+   `uv run vine train irrigation configs/d2_irrigation/naive.yaml` and
+   `.../ridge.yaml` → real baseline table; record it here + devlog. Ridge ships
+   only if skill_vs_persistence > 0 on real data (ADR-0003).
+3. `dvc pull` / re-push snapshots; DVC-pin the new imagery under
+   `data/raw/imagery/`; re-verify the s3-west bucket round-trip.
+4. D2 next rungs: ARIMA (pmdarima) on the same harness; weather-**forecast**
+   reader (Open-Meteo forecast) for true lead-time features; per-block NDVI
+   zonal features as exogenous inputs.
+5. ⏸️ Historical harvest (input #3) still a mentor Q (gates D4 only).
+6. D3 groundwork when ready: per-block patches from the 2025-08-29 H-blocks +
    2026-06-01 whole-vineyard orthomosaic sets (NDVI/NDRE layers pre-computed).
 
-**Done since last:** D1 imagery + geo built end-to-end (share scouted → brief →
-webdav/imagery/geo modules → 48 tests green → live-verified on real flights, real
-KMZ, real DSM). D1 is code-complete; only input #3 (historical, D4-only) is open.
+**Done since last:** D2 baseline ladder + D5 walk-forward harness built, tested
+(67 green), and verified end-to-end on synthetic data; `vine train irrigation`
+works. Live run blocked only on restoring secrets (see 1).
 
 ## How we keep state across sessions
 
