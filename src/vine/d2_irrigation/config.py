@@ -7,7 +7,7 @@ from pydantic import BaseModel, Field
 
 class IrrigationConfig(BaseModel):
     model: str = Field(
-        description="naive | ridge | arima implemented; prophet | lstm planned, not yet built"
+        description="naive | ridge | arima | forest | gbt implemented; prophet | lstm not built"
     )
     device: str = "SE01-LS-1"  # which sensor's snapshot to forecast
     target: str = "soil_water"  # column to forecast (a KIND_MEASUREMENTS name)
@@ -16,10 +16,15 @@ class IrrigationConfig(BaseModel):
     n_folds: int = 5  # walk-forward folds over the holdout half
     # Ridge-only knobs
     alpha: float = 1.0
-    predict_delta: bool = False  # ridge learns y(t) - y(t-h), reconstructed to level before scoring
+    predict_delta: bool = False  # learn y(t) - y(t-h), reconstructed to level before scoring
     forecast_features: bool = False  # attach add_lead_time_features (perfect-forecast proxy)
     # ARIMA-only knobs
     order: list[int] = [2, 1, 2]
+    # Tree-model knobs (forest / gbt)
+    n_estimators: int = 300
+    max_depth: int | None = None
+    gbt_learning_rate: float = 0.06
+    gbt_max_iter: int = 300
     # LSTM-only knobs (ignored by classical models)
     window_h: int = 72
     hidden: int = 128

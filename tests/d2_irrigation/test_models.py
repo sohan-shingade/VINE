@@ -49,6 +49,39 @@ def test_ridge_leaves_nan_where_test_features_missing():
     assert np.isfinite(np.delete(preds, 10)).all()
 
 
+def test_gbt_learns_a_nonlinear_relationship_ridge_cannot():
+    from vine.d2_irrigation.models import make_gbt, make_ridge
+
+    rng = np.random.default_rng(0)
+    idx = pd.date_range("2026-01-01", periods=400, freq="1h", tz="UTC")
+    X = pd.DataFrame({"a": rng.normal(size=400), "b": rng.normal(size=400)}, index=idx)
+    y = pd.Series(X["a"] * X["b"], index=idx)  # pure interaction: linear R^2 ~ 0
+    gbt = make_gbt(max_iter=200)(X.iloc[:300], y.iloc[:300], X.iloc[300:])
+    ridge = make_ridge()(X.iloc[:300], y.iloc[:300], X.iloc[300:])
+    truth = y.iloc[300:].to_numpy()
+    assert np.abs(gbt - truth).mean() < np.abs(ridge - truth).mean()
+
+
+def test_gbt_predicts_through_nan_features():
+    from vine.d2_irrigation.models import make_gbt
+
+    X, y = _frame()
+    X.iloc[90, 0] = np.nan  # unlike ridge/forest, gbt handles missing natively
+    X["soil_water_std_1h"] = np.nan  # ...but all-NaN columns crash its binner
+    preds = make_gbt()(X.iloc[:80], y.iloc[:80], X.iloc[80:])
+    assert np.isfinite(preds).all()
+
+
+def test_forest_matches_ridge_nan_policy():
+    from vine.d2_irrigation.models import make_forest
+
+    X, y = _frame()
+    X.iloc[90, 0] = np.nan
+    preds = make_forest(n_estimators=20)(X.iloc[:80], y.iloc[:80], X.iloc[80:])
+    assert np.isnan(preds[10])
+    assert np.isfinite(np.delete(preds, 10)).all()
+
+
 def test_arima_beats_persistence_on_ar2():
     """Built the way the harness would: X_test[target_col] = y.shift(h) sliced
     to the fold, so it holds the true decision-time observation for each row."""

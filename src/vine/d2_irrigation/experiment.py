@@ -24,7 +24,7 @@ from vine.common.logging import get_logger
 from vine.d1_pipeline.pipeline import add_lead_time_features
 from vine.d2_irrigation import baselines
 from vine.d2_irrigation.config import IrrigationConfig
-from vine.d2_irrigation.models import make_arima, make_ridge
+from vine.d2_irrigation.models import make_arima, make_forest, make_gbt, make_ridge
 from vine.d5_evaluation.metrics import mae, precision_recall, rmse
 from vine.d5_evaluation.walkforward import expanding_splits, skill, walk_forward
 
@@ -65,6 +65,7 @@ def run_experiment(frame: pd.DataFrame, cfg: IrrigationConfig) -> pd.DataFrame:
         X = X.drop(columns=mismatched)
         preds: dict[str, pd.Series] = {
             "persistence": baselines.naive_persistence(y, h),
+            "drydown": baselines.drydown_trend(y, h),
             "seasonal_naive": baselines.seasonal_naive(y, h),
             "climatology": walk_forward(
                 X,
@@ -73,15 +74,21 @@ def run_experiment(frame: pd.DataFrame, cfg: IrrigationConfig) -> pd.DataFrame:
                 cfg.n_folds,
             ),
         }
-        if cfg.model == "ridge" and cfg.predict_delta:
+        regressors = {
+            "ridge": lambda: make_ridge(cfg.alpha),
+            "forest": lambda: make_forest(cfg.n_estimators, cfg.max_depth),
+            "gbt": lambda: make_gbt(cfg.gbt_learning_rate, cfg.gbt_max_iter),
+        }
+        if cfg.model in regressors and cfg.predict_delta:
             # Learn the change y(t) - y(t-h) instead of the level: persistence
             # is then exactly the zero-change prediction, so any learned skill
             # is real signal, not just re-deriving persistence with error.
             delta = y - y.shift(h)
-            delta_pred = walk_forward(X, delta, make_ridge(cfg.alpha), cfg.n_folds)
-            preds["ridge_delta"] = y.shift(h) + delta_pred  # reconstruct to level to score fairly
-        elif cfg.model == "ridge":
-            preds["ridge"] = walk_forward(X, y, make_ridge(cfg.alpha), cfg.n_folds)
+            delta_pred = walk_forward(X, delta, regressors[cfg.model](), cfg.n_folds)
+            # reconstruct to level to score fairly
+            preds[f"{cfg.model}_delta"] = y.shift(h) + delta_pred
+        elif cfg.model in regressors:
+            preds[cfg.model] = walk_forward(X, y, regressors[cfg.model](), cfg.n_folds)
         elif cfg.model == "arima":
             p, d, q = cfg.order
             preds["arima"] = walk_forward(

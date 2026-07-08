@@ -1,0 +1,13 @@
+# Hypothesis: same as gbt.yaml but with a random forest — bagging instead of
+# boosting. Expected to trail gbt (no native NaN handling -> complete rows
+# only), included for evidence since it was explicitly proposed.
+model: forest
+device: SE01-LS-1
+target: soil_water
+features: [soil_water, soil_temperature, soil_conductivity]
+horizons_h: [6, 12, 24, 48]
+n_folds: 5
+predict_delta: true
+forecast_features: true
+n_estimators: 300
+irrigate_below: 25.0

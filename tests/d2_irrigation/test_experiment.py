@@ -28,8 +28,8 @@ def _daily_cycle_frame(n_hours: int = 24 * 30, seed: int = 0) -> pd.DataFrame:
 def test_results_table_shape_and_fair_n():
     cfg = IrrigationConfig(model="naive", horizons_h=[6, 24], n_folds=3)
     results = run_experiment(_daily_cycle_frame(), cfg)
-    assert set(results["model"]) == {"persistence", "seasonal_naive", "climatology"}
-    assert len(results) == 3 * 2  # models x horizons
+    assert set(results["model"]) == {"persistence", "drydown", "seasonal_naive", "climatology"}
+    assert len(results) == 4 * 2  # models x horizons
     # fairness: every model scored on the same rows within a horizon
     for _, grp in results.groupby("horizon_h"):
         assert grp["n"].nunique() == 1
@@ -43,6 +43,18 @@ def test_seasonal_naive_beats_persistence_on_daily_cycle():
     for h in (6, 12):
         assert results.loc[("seasonal_naive", h), "mae"] < results.loc[("persistence", h), "mae"]
         assert results.loc[("seasonal_naive", h), "skill_vs_persistence"] > 0
+
+
+def test_gbt_delta_runs_e2e_with_forecast_features():
+    cfg = IrrigationConfig(
+        model="gbt", horizons_h=[6], n_folds=3, predict_delta=True, forecast_features=True
+    )
+    frame = _daily_cycle_frame()
+    frame["precip_mm"] = 0.0  # add_lead_time_features needs the weather columns
+    frame["et0_mm"] = 3.0
+    results = run_experiment(frame, cfg)
+    assert "gbt_delta" in set(results["model"])
+    assert "drydown" in set(results["model"])
 
 
 def test_persistence_skill_is_zero_by_construction():

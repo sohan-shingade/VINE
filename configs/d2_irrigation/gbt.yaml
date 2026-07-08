@@ -1,0 +1,15 @@
+# Hypothesis: gradient-boosted trees on the Δ-target with lead-time forecast
+# features capture the *nonlinear* rain/ET response that ridge (linear) missed.
+# Trees can't extrapolate a drifting level, hence predict_delta. Baseline to
+# beat: persistence AND the drydown rule (both in every table).
+model: gbt
+device: SE01-LS-1
+target: soil_water
+features: [soil_water, soil_temperature, soil_conductivity]
+horizons_h: [6, 12, 24, 48]
+n_folds: 5
+predict_delta: true
+forecast_features: true
+gbt_learning_rate: 0.06
+gbt_max_iter: 300
+irrigate_below: 25.0

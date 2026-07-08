@@ -38,6 +38,20 @@ def climatology_hourly(y_train: pd.Series, index: pd.DatetimeIndex) -> pd.Series
     return pd.Series(by_hour.reindex(index.hour).to_numpy(), index=index)
 
 
+def drydown_trend(series: pd.Series, horizon: int, window: int = 24) -> pd.Series:
+    """Persistence plus physics: extrapolate the recent drying slope.
+
+    The rule a grower would state out loud — "it's been dropping ~0.1/day, so
+    in two days it'll be ~0.2 lower." Slope is the mean change per row over the
+    last `window` rows before decision time; prediction is the last observed
+    value plus `horizon` rows of that slope. Pure shifts, so row `t` uses only
+    data available at `t - horizon`; zero fitted parameters.
+    """
+    last = series.shift(horizon)
+    slope = (last - series.shift(horizon + window)) / window
+    return last + horizon * slope
+
+
 def threshold_rule(moisture: pd.Series, irrigate_below: float) -> pd.Series:
     """Fixed-threshold irrigation decision: irrigate when moisture < threshold."""
     return moisture < irrigate_below

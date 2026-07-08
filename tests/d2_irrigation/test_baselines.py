@@ -5,6 +5,7 @@ import pandas as pd
 
 from vine.d2_irrigation.baselines import (
     climatology_hourly,
+    drydown_trend,
     naive_persistence,
     seasonal_naive,
     threshold_rule,
@@ -45,6 +46,22 @@ def test_climatology_predicts_hour_of_day_mean():
     index = pd.date_range("2026-02-01", periods=24, freq="1h", tz="UTC")
     pred = climatology_hourly(train, index)
     assert np.allclose(pred.to_numpy(), np.arange(24))
+
+
+def test_drydown_trend_is_exact_on_a_linear_ramp():
+    """On a perfectly linear dry-down the rule reproduces the truth exactly:
+    slope over the window is the true slope, and last + h*slope == y(t)."""
+    y = _hourly(np.arange(100, 0, -1))  # steady -1/hour
+    pred = drydown_trend(y, horizon=6, window=24)
+    assert np.allclose(pred.iloc[40:], y.iloc[40:])
+    # needs horizon + window rows of history first
+    assert pred.iloc[: 6 + 24].isna().all()
+
+
+def test_drydown_trend_equals_persistence_when_flat():
+    y = _hourly([5.0] * 60)
+    pred = drydown_trend(y, horizon=12, window=24)
+    assert np.allclose(pred.iloc[40:], 5.0)
 
 
 def test_threshold_rule():

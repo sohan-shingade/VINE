@@ -235,6 +235,21 @@ winter/dormant; the useful growing-season flights are Aug (pre-harvest) + Oct
   is genuinely strong. All runs in MLflow (`d2_irrigation`). (SE0X-LS-1 has no
   `soil_water` column — excluded.)
 
+- **2026-07-08 (late night)** — **Trees + rule rung evaluated; conclusion
+  unchanged.** Added on request: `drydown_trend` rule baseline (persistence +
+  recent-slope extrapolation, now in every results table), `make_forest`
+  (RandomForest, complete-rows policy) and `make_gbt`
+  (HistGradientBoostingRegressor — CatBoost family, native NaN, zero new
+  deps; its binner crashes on all-NaN columns → dropped like ridge does);
+  `predict_delta` generalized to any regressor. Run on all 4 sensors ×
+  4 horizons (Δ-target + perfect-forecast features): **drydown negative in
+  15/16 cells; forest and gbt wildly unstable** — scattered aggregate wins
+  (up to +48 %) with catastrophic worst-folds (−4.6…−16) and sign flips
+  across sensors (gbt@LS-1/48 h recall 0.64 = misses ⅓ of alerts). Textbook
+  high-variance memorization of fold-specific rain episodes, under a perfect
+  forecast no less → **do not ship; persistence unchallenged** across 7 model
+  families. 84 tests green; runs in MLflow.
+
 ## Open questions for mentor
 
 1. **Historical records** (harvest dates, yields, irrigation logs) — do they exist,

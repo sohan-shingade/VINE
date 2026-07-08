@@ -48,6 +48,61 @@ def make_ridge(alpha: float = 1.0) -> FitPredict:
     return fit_predict
 
 
+def make_forest(n_estimators: int = 300, max_depth: int | None = None) -> FitPredict:
+    """Random-forest fit_predict (sklearn), same complete-rows policy as ridge.
+
+    Trees cannot extrapolate past their training range, so on a seasonally
+    drifting *level* series a forest degrades to clipping — pair it with
+    `predict_delta`, where the target is roughly stationary. random_state is
+    fixed: the run is already config+seed reproducible and sklearn needs an
+    explicit value.
+    """
+
+    def fit_predict(X_train: pd.DataFrame, y_train: pd.Series, X_test: pd.DataFrame) -> np.ndarray:
+        from sklearn.ensemble import RandomForestRegressor
+
+        cols = X_train.columns[X_train.notna().any()]
+        ok = X_train[cols].notna().all(axis=1) & y_train.notna()
+        model = RandomForestRegressor(
+            n_estimators=n_estimators, max_depth=max_depth, random_state=0, n_jobs=-1
+        )
+        model.fit(X_train.loc[ok, cols], y_train[ok])
+
+        out = np.full(len(X_test), np.nan)
+        te = X_test[cols].notna().all(axis=1).to_numpy()
+        if te.any():
+            out[te] = model.predict(X_test.loc[te, cols])
+        return out
+
+    return fit_predict
+
+
+def make_gbt(learning_rate: float = 0.06, max_iter: int = 300) -> FitPredict:
+    """Gradient-boosted trees fit_predict — sklearn's HistGradientBoosting.
+
+    Same model family as CatBoost/LightGBM without a new dependency, and it
+    handles NaN features natively (missing values route down a learned branch),
+    which suits gappy sensor frames: only rows with a missing *target* are
+    dropped from training, and every test row gets a prediction. The same
+    extrapolation caveat as `make_forest` applies — prefer `predict_delta`.
+    """
+
+    def fit_predict(X_train: pd.DataFrame, y_train: pd.Series, X_test: pd.DataFrame) -> np.ndarray:
+        from sklearn.ensemble import HistGradientBoostingRegressor
+
+        # Partial NaN is fine natively, but the binner crashes on a column with
+        # zero finite values (e.g. std over a 1-sample window) — drop those.
+        cols = X_train.columns[X_train.notna().any()]
+        ok = y_train.notna()
+        model = HistGradientBoostingRegressor(
+            learning_rate=learning_rate, max_iter=max_iter, random_state=0
+        )
+        model.fit(X_train.loc[ok, cols], y_train[ok])
+        return np.asarray(model.predict(X_test[cols]), dtype=float)
+
+    return fit_predict
+
+
 def make_arima(
     order: tuple[int, int, int] = (2, 1, 2),
     horizon: int = 1,
