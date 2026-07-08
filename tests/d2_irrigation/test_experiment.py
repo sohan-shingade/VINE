@@ -75,3 +75,76 @@ def test_all_gap_holdout_raises():
     frame.loc[frame.index[100:], "soil_water"] = np.nan
     with pytest.raises(ValueError, match="no scorable rows"):
         run_experiment(frame, IrrigationConfig(model="naive", horizons_h=[6], n_folds=3))
+
+
+def _frame_with_weather(n_hours: int = 24 * 60, seed: int = 0) -> pd.DataFrame:
+    """Daily-cycle moisture frame plus a `precip_mm` column (daily total,
+    forward-filled hourly — the shape `add_lead_time_features` expects)."""
+    frame = _daily_cycle_frame(n_hours, seed)
+    rng = np.random.default_rng(seed + 1)
+    n_days = n_hours // 24 + 1
+    daily_precip = rng.uniform(0, 8, n_days)
+    frame["precip_mm"] = np.repeat(daily_precip, 24)[:n_hours]
+    return frame
+
+
+def test_ridge_delta_with_forecast_features_e2e_no_leak_crash():
+    """Smoke test: forecast_features + predict_delta run end to end across
+    multiple horizons, producing a ridge_delta row and never crashing on the
+    per-horizon mismatched `_next_*` column drop."""
+    frame = _frame_with_weather()
+    cfg = IrrigationConfig(
+        model="ridge",
+        horizons_h=[6, 24],
+        n_folds=3,
+        predict_delta=True,
+        forecast_features=True,
+    )
+    results = run_experiment(frame, cfg)
+    assert "ridge_delta" in set(results["model"])
+    assert (results["n"] > 0).all()
+
+
+def test_ridge_delta_beats_persistence_when_change_is_precip_driven():
+    """Construct soil moisture whose CHANGE over h hours is exactly a linear
+    function of the forward precip sum over that same window — the one thing
+    `add_lead_time_features` exposes and persistence structurally cannot see.
+    ridge_delta should recover it and clearly beat persistence."""
+    n_hours = 24 * 60
+    rng = np.random.default_rng(3)
+    idx = pd.date_range("2026-01-01", periods=n_hours, freq="1h", tz="UTC")
+    n_days = n_hours // 24
+    daily_precip = rng.uniform(0, 8, n_days)
+    precip_mm = np.repeat(daily_precip, 24)
+    rate = precip_mm / 24.0
+    effect = 0.8
+    y = 30.0 + effect * np.cumsum(rate) + rng.normal(0, 0.001, n_hours)
+    frame = pd.DataFrame(
+        {
+            "soil_water": y,
+            "soil_temperature": 20 + rng.normal(0, 1, n_hours),
+            "precip_mm": precip_mm,
+        },
+        index=idx,
+    )
+    cfg = IrrigationConfig(
+        model="ridge", horizons_h=[6], n_folds=3, predict_delta=True, forecast_features=True
+    )
+    results = run_experiment(frame, cfg).set_index(["model", "horizon_h"])
+    assert results.loc[("ridge_delta", 6), "skill_vs_persistence"] > 0
+
+
+def test_arima_e2e_smoke():
+    """Small AR(1) series, tiny order, few folds — just checking the harness
+    wiring (walk_forward -> make_arima -> scored like every other model)."""
+    n_hours = 24 * 10
+    rng = np.random.default_rng(4)
+    idx = pd.date_range("2026-01-01", periods=n_hours, freq="1h", tz="UTC")
+    y = np.zeros(n_hours)
+    for i in range(1, n_hours):
+        y[i] = 0.9 * y[i - 1] + rng.normal(0, 0.1)
+    frame = pd.DataFrame({"soil_water": y + 30.0}, index=idx)
+    cfg = IrrigationConfig(model="arima", horizons_h=[1], n_folds=2, order=[1, 0, 0])
+    results = run_experiment(frame, cfg)
+    assert "arima" in set(results["model"])
+    assert (results.loc[results["model"] == "arima", "n"] > 0).all()

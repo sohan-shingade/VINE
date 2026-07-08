@@ -1,0 +1,13 @@
+# Hypothesis: persistence has no way to know precip/ET0 are coming — knowing
+# the upcoming drivers of drydown (via add_lead_time_features, a perfect-
+# forecast proxy for weather.fetch_forecast) is information persistence
+# structurally cannot have. Baseline: ridge.yaml (same features, no forecast).
+model: ridge
+device: SE01-LS-1
+target: soil_water
+features: [soil_water, soil_temperature, soil_conductivity]
+horizons_h: [6, 12, 24, 48]
+n_folds: 5
+alpha: 1.0
+forecast_features: true
+irrigate_below: 25.0

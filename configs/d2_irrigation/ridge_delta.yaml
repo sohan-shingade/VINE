@@ -1,0 +1,14 @@
+# Hypothesis: soil moisture LEVEL is near-random-walk (real data: ridge on
+# level has negative skill, ADR-0003), which swamps any weather signal.
+# Predicting the CHANGE y(t)-y(t-h) instead removes that dominant random-walk
+# term, so upcoming precip/ET0 (forecast_features) has a chance to show up.
+model: ridge
+device: SE01-LS-1
+target: soil_water
+features: [soil_water, soil_temperature, soil_conductivity]
+horizons_h: [6, 12, 24, 48]
+n_folds: 5
+alpha: 1.0
+predict_delta: true
+forecast_features: true
+irrigate_below: 25.0

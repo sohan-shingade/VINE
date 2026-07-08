@@ -1,0 +1,6 @@
+outs:
+- md5: 7178cd14767495cb8302bc3eb144d44f.dir
+  size: 63879320
+  nfiles: 6
+  hash: md5
+  path: imagery

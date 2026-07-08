@@ -68,3 +68,46 @@ def test_fetch_historical_uses_config_defaults(monkeypatch):
     assert captured["params"]["latitude"] == weather.settings.vineyard_lat
     assert captured["params"]["longitude"] == weather.settings.vineyard_lon
     assert len(df) == 2
+
+
+def test_build_forecast_params_shape():
+    p = weather.build_forecast_params(7, 38.457, -122.896)
+    assert p["latitude"] == 38.457
+    assert p["longitude"] == -122.896
+    assert p["forecast_days"] == 7
+    assert p["timezone"] == "UTC"
+    # daily vars are comma-joined and include reference ET, same as the archive
+    assert "et0_fao_evapotranspiration" in p["daily"]
+    assert p["daily"].count(",") == len(weather.DAILY_VARS) - 1
+
+
+def test_parse_daily_handles_forecast_shaped_payload():
+    # forecast API returns the same 'daily' block shape as the archive API
+    df = weather.parse_daily(_fake_payload())
+    assert list(df.columns) == ["temp_max_c", "temp_min_c", "precip_mm", "et0_mm"]
+    assert len(df) == 2
+
+
+def test_fetch_forecast_uses_config_defaults(monkeypatch):
+    captured = {}
+
+    class _Resp:
+        def raise_for_status(self):
+            pass
+
+        def json(self):
+            return _fake_payload()
+
+    def _fake_get(url, params=None, timeout=None):
+        captured["url"] = url
+        captured["params"] = params
+        return _Resp()
+
+    monkeypatch.setattr(weather.requests, "get", _fake_get)
+    df = weather.fetch_forecast(days=3)
+    # defaults pulled from settings (vineyard coords + forecast url)
+    assert captured["url"] == weather.settings.weather_forecast_url
+    assert captured["params"]["latitude"] == weather.settings.vineyard_lat
+    assert captured["params"]["longitude"] == weather.settings.vineyard_lon
+    assert captured["params"]["forecast_days"] == 3
+    assert len(df) == 2

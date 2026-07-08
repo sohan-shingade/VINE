@@ -15,16 +15,24 @@ decision time.
 
 from __future__ import annotations
 
+import re
+
+import numpy as np
 import pandas as pd
 
 from vine.common.logging import get_logger
+from vine.d1_pipeline.pipeline import add_lead_time_features
 from vine.d2_irrigation import baselines
 from vine.d2_irrigation.config import IrrigationConfig
-from vine.d2_irrigation.models import make_ridge
+from vine.d2_irrigation.models import make_arima, make_ridge
 from vine.d5_evaluation.metrics import mae, precision_recall, rmse
 from vine.d5_evaluation.walkforward import expanding_splits, skill, walk_forward
 
 log = get_logger(__name__)
+
+# Matches the horizon out of a `{stem}_next_{h}h` lead-time column name (see
+# `vine.d1_pipeline.pipeline.add_lead_time_features`).
+_NEXT_H_RE = re.compile(r"_next_(\d+)h$")
 
 
 def run_experiment(frame: pd.DataFrame, cfg: IrrigationConfig) -> pd.DataFrame:
@@ -39,6 +47,9 @@ def run_experiment(frame: pd.DataFrame, cfg: IrrigationConfig) -> pd.DataFrame:
         Tidy frame: model, horizon_h, n, mae, rmse, skill_vs_persistence,
         precision, recall — sorted by horizon then MAE.
     """
+    if cfg.forecast_features:
+        frame = add_lead_time_features(frame, cfg.horizons_h)
+
     y = frame[cfg.target]
     numeric = frame.select_dtypes("number")
 
@@ -46,6 +57,12 @@ def run_experiment(frame: pd.DataFrame, cfg: IrrigationConfig) -> pd.DataFrame:
     for h in cfg.horizons_h:
         # Features as known at decision time t-h, aligned to target time t.
         X = numeric.shift(h)
+        # A `_next_{h_feat}h` column read at decision time t-h covers
+        # (t-h, t-h+h_feat]; that only equals the target window (t-h, t] when
+        # h_feat == h. Any other horizon reaches past (or short of) the target
+        # time t — a mismatched one is a genuine future leak, not a feature.
+        mismatched = [c for c in X.columns if (m := _NEXT_H_RE.search(c)) and int(m.group(1)) != h]
+        X = X.drop(columns=mismatched)
         preds: dict[str, pd.Series] = {
             "persistence": baselines.naive_persistence(y, h),
             "seasonal_naive": baselines.seasonal_naive(y, h),
@@ -56,8 +73,20 @@ def run_experiment(frame: pd.DataFrame, cfg: IrrigationConfig) -> pd.DataFrame:
                 cfg.n_folds,
             ),
         }
-        if cfg.model == "ridge":
+        if cfg.model == "ridge" and cfg.predict_delta:
+            # Learn the change y(t) - y(t-h) instead of the level: persistence
+            # is then exactly the zero-change prediction, so any learned skill
+            # is real signal, not just re-deriving persistence with error.
+            delta = y - y.shift(h)
+            delta_pred = walk_forward(X, delta, make_ridge(cfg.alpha), cfg.n_folds)
+            preds["ridge_delta"] = y.shift(h) + delta_pred  # reconstruct to level to score fairly
+        elif cfg.model == "ridge":
             preds["ridge"] = walk_forward(X, y, make_ridge(cfg.alpha), cfg.n_folds)
+        elif cfg.model == "arima":
+            p, d, q = cfg.order
+            preds["arima"] = walk_forward(
+                X, y, make_arima((p, d, q), horizon=h, target_col=cfg.target), cfg.n_folds
+            )
 
         # Score every model on the same rows: holdout region, all preds + truth present.
         holdout_start = expanding_splits(len(y), cfg.n_folds)[0][1].start
@@ -69,10 +98,30 @@ def run_experiment(frame: pd.DataFrame, cfg: IrrigationConfig) -> pd.DataFrame:
         if n == 0:
             raise ValueError(f"horizon {h}h: no scorable rows (all-gap holdout?)")
 
+        # Per-fold skills alongside the aggregate: a pooled MAE over
+        # heterogeneous folds can be dominated by one easy/hard stretch (the
+        # eval review caught exactly that), so the ship gate reads the spread.
+        splits = expanding_splits(len(y), cfg.n_folds)
+        fold_masks = []
+        for _, te in splits:
+            m = valid.copy()
+            m.iloc[: te.start] = False
+            m.iloc[te.stop :] = False
+            if m.any():
+                fold_masks.append(m)
+
         yt = y[valid].to_numpy()
+        pers = preds["persistence"]
         for name, p in preds.items():
             yp = p[valid].to_numpy()
             prec, rec = precision_recall(yt < cfg.irrigate_below, yp < cfg.irrigate_below)
+            fold_skills = [
+                skill(
+                    mae(y[m].to_numpy(), p[m].to_numpy()),
+                    mae(y[m].to_numpy(), pers[m].to_numpy()),
+                )
+                for m in fold_masks
+            ]
             rows.append(
                 {
                     "model": name,
@@ -82,6 +131,8 @@ def run_experiment(frame: pd.DataFrame, cfg: IrrigationConfig) -> pd.DataFrame:
                     "rmse": rmse(yt, yp),
                     "precision": prec,
                     "recall": rec,
+                    "skill_fold_median": float(np.median(fold_skills)),
+                    "skill_fold_min": float(np.min(fold_skills)),
                 }
             )
         log.info("evaluated horizon", horizon_h=h, n=n, models=list(preds))

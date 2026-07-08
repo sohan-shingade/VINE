@@ -57,6 +57,25 @@ def test_attach_weather_broadcasts_daily_and_computes_gdd():
     assert out.loc["2025-08-02T05:00", "gdd"] == 22.0
 
 
+def test_add_lead_time_features_sums_forward_and_names_columns():
+    idx = pd.date_range("2026-01-01", periods=6, freq="1h")
+    # Daily totals (arbitrary, not required to be constant per day for this
+    # unit test — the function just treats each row as `value / 24` mm/h).
+    precip_mm = [0.0, 24.0, 48.0, 72.0, 96.0, 120.0]
+    frame = pd.DataFrame({"precip_mm": precip_mm}, index=idx)
+    out = pipeline.add_lead_time_features(frame, [2])
+
+    assert "precip_next_2h" in out.columns
+    assert "et0_next_2h" not in out.columns  # et0_mm absent from the input -> skipped
+
+    rate = [v / 24.0 for v in precip_mm]  # [0, 1, 2, 3, 4, 5]
+    # row s covers (s, s+2]: sum of rate[s+1] + rate[s+2]
+    expected = [rate[1] + rate[2], rate[2] + rate[3], rate[3] + rate[4], rate[4] + rate[5]]
+    got = out["precip_next_2h"].tolist()
+    assert got[:4] == expected
+    assert pd.isna(got[4]) and pd.isna(got[5])  # window runs past the end of the frame
+
+
 def test_attach_weather_reconciles_tz_aware_frame():
     # real sensor snapshots are tz-aware (UTC); weather dates are tz-naive
     fidx = pd.date_range("2025-08-01", periods=24, freq="1h", tz="UTC")

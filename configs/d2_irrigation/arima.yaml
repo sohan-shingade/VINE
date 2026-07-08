@@ -1,0 +1,12 @@
+# Hypothesis: a SARIMAX(2,1,2) on soil_water's own dynamics beats persistence
+# at short horizons by modeling autocorrelation persistence can't (it's a
+# flat carry-forward); differencing (d=1) targets the near-random-walk level
+# directly. Baseline: naive.yaml.
+model: arima
+device: SE01-LS-1
+target: soil_water
+features: [soil_water, soil_temperature, soil_conductivity]
+horizons_h: [6, 12, 24, 48]
+n_folds: 5
+order: [2, 1, 2]
+irrigate_below: 25.0

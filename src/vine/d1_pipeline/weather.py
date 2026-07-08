@@ -1,16 +1,20 @@
-"""Historical weather for IHV from the Open-Meteo Archive API (D1 input #4).
+"""Weather for IHV from the Open-Meteo Archive + Forecast APIs (D1 input #4).
 
 Weather drives irrigation (evapotranspiration, rainfall) and harvest timing
 (growing degree-days). The on-site LoRaWAN sensors give local point weather but
 are recent-only and gappy, so historical features come from a reanalysis
-archive instead (see docs/adr/0009-weather-data-sources.md).
+archive instead (see docs/adr/0009-weather-data-sources.md). Forecast weather
+(input 4f) gives D2 irrigation true lead-time features — the physical reason a
+model should be able to beat a persistence baseline.
 
-    Open-Meteo Archive (ERA5): https://archive-api.open-meteo.com/v1/archive
-    Free, no API key, gridded to the vineyard coordinates (38.457, -122.896).
+    Archive (ERA5, past):  https://archive-api.open-meteo.com/v1/archive
+    Forecast (future):     https://api.open-meteo.com/v1/forecast
+    Both free, no API key, gridded to the vineyard coords (38.457, -122.896).
 
-Returns a tidy daily frame indexed by date with friendly column names. The
-query/parse helpers are pure (network-free) so they unit-test without a live
-call; `fetch_historical` is the thin I/O edge. `requests` is a core dependency.
+Both endpoints return a tidy daily frame indexed by date with friendly column
+names. The query/parse helpers are pure (network-free) so they unit-test
+without a live call; `fetch_historical`/`fetch_forecast` are the thin I/O
+edges. `requests` is a core dependency.
 """
 
 from __future__ import annotations
@@ -81,6 +85,26 @@ def parse_daily(payload: dict[str, Any]) -> pd.DataFrame:
     return df
 
 
+def build_forecast_params(
+    days: int,
+    lat: float,
+    lon: float,
+    daily: tuple[str, ...] = DAILY_VARS,
+    timezone: str = "UTC",
+) -> dict[str, Any]:
+    """Build query params for the Open-Meteo forecast endpoint.
+
+    `days` is the forecast horizon in days (Open-Meteo accepts 1..16).
+    """
+    return {
+        "latitude": lat,
+        "longitude": lon,
+        "forecast_days": days,
+        "daily": ",".join(daily),
+        "timezone": timezone,
+    }
+
+
 def fetch_historical(
     start_date: str,
     end_date: str,
@@ -103,4 +127,30 @@ def fetch_historical(
     resp.raise_for_status()
     df = parse_daily(resp.json())
     log.info("weather fetch", rows=len(df), start=start_date, end=end_date)
+    return df
+
+
+def fetch_forecast(
+    days: int = 7,
+    lat: float | None = None,
+    lon: float | None = None,
+    daily: tuple[str, ...] = DAILY_VARS,
+    url: str | None = None,
+    timeout: float = 30.0,
+) -> pd.DataFrame:
+    """Fetch a daily weather forecast for the vineyard, `days` ahead.
+
+    Coordinates and the forecast URL default to the configured vineyard
+    location (see vine.common.config). The response's `daily` block has the
+    same shape as the archive API, so it reuses `parse_daily`. Returns the
+    tidy frame (today .. today + days - 1).
+    """
+    lat = settings.vineyard_lat if lat is None else lat
+    lon = settings.vineyard_lon if lon is None else lon
+    url = url or settings.weather_forecast_url
+    params = build_forecast_params(days, lat, lon, daily)
+    resp = requests.get(url, params=params, timeout=timeout)
+    resp.raise_for_status()
+    df = parse_daily(resp.json())
+    log.info("weather forecast fetch", rows=len(df), days=days)
     return df

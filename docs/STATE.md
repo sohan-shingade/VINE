@@ -3,34 +3,41 @@
 > **Single source of truth for "where are we."** Git-tracked so it survives any
 > session, machine, or context reset. **Any new session: read this first.**
 > Update it at the end of any session that changes status. Last updated:
-> **2026-07-08**. Phase: **D2 live-evaluated on real data; ridge does not ship**.
+> **2026-07-08 (evening)**. Phase: **D2 ladder complete through ARIMA; S3/DVC
+> restored; persistence still champion, ARIMA a marginal candidate**.
 
 ## TL;DR — resume here
 
-**D1 is code-complete and live-verified; D2 has its real baseline table**
-(2026-07-08): Influx token restored (re-extracted from the public starter repo —
-see done log; rotation question to mentor stands), full re-ingest done (1.04 M
-rows across 9 devices; SE01-LS-1 history starts **2026-01-22**, ~5.5 months),
-and the walk-forward eval ran on real data. **Result: persistence wins at every
-horizon; ridge has negative skill (−0.7…−1.1) → per ADR-0003 ridge does NOT
-ship.** Real soil moisture is far more persistent than the synthetic cycle.
-Next rungs must add real signal: weather-forecast lead-time features, ARIMA,
-predicting *change* rather than level. **Still blocked on `/s3token/` keys:**
-S3/DVC (`dvc pull`/push, snapshot pinning) — that's the remaining human step.
+**All lost secrets restored; D2 rungs 2–3 built and honestly evaluated**
+(2026-07-08 evening, orchestrated multi-agent session): S3 keys re-issued →
+DVC round-trip verified and fresh snapshots pinned+pushed. Built via parallel
+workers: weather-**forecast** reader (input 4f ✅), **ARIMA** rung, **Δ-moisture**
+target, **lead-time forecast features** (perfect-forecast proxy with a
+per-horizon leakage guard). An adversarial eval-review then **caught a real
+causality bug in ARIMA** (early-fold rows forecast from a Kalman state that
+had seen past their decision time) and exposed ridge+forecast's 48 h "+15%"
+as a **single April-rain-fold artifact**. After the fix + per-fold skill
+columns: **ARIMA is the first rung to clear persistence — +3.0/−1.8/+2.4/+2.1 %
+at 6/12/24/48 h, positive in every fold at 48 h — but too small/one-season to
+ship yet; persistence stays champion** pending a shoulder-season holdout.
+Remaining human steps: mentor asks (kubeconfig for NRP compute, token rotation,
+harvest records).
 
 ## Verified facts & live endpoints
 
 Everything here was **tested and confirmed working** from this machine at the
 noted date (secrets live in `.env`, gitignored — never commit them).
-⚠️ The 2026-07-04 machine wipe lost `.env` + `.dvc/config.local`. **Influx token
-restored 2026-07-08** (from the public starter repo — see done log). Rows still
-marked 🔑 need `/s3token/` keys (endpoints fine; anonymous S3 GET → 403).
+The 2026-07-04 machine wipe lost `.env` + `.dvc/config.local`; **everything
+that matters is restored as of 2026-07-08** (Influx token from the starter
+repo, S3 keys re-issued from portal `/s3token/`). Only the optional LLM key
+remains unset. Gotcha: **no inline comments after values in `.env`** — dotenv
+reads them as the value (bit us via `.env.example`'s NDP line; now fixed).
 
 | Resource | Endpoint | Access | Verified |
 |----------|----------|--------|----------|
 | Sensors (InfluxDB) | `https://nrp-thingsboard-influxdb.nrp-nautilus.io` org `Iron Horse Vineyards`, bucket `ihv` | Flux + `VINE_INFLUX_TOKEN` | ✅ **token restored + re-verified 2026-07-08** (1.04 M rows re-ingested) |
-| NRP S3 (Pool West) | `https://s3-west.nrp-nautilus.io`, bucket `ihv-vine` | `AWS_ACCESS_KEY_ID/SECRET` in `.env` | 🔑 endpoint back up 2026-07-06 (root 200); **keys lost in wipe** — portal `/s3token/` |
-| DVC remote | `s3://ihv-vine/dvc` on NRP S3 | configured `.dvc/config` + creds `.dvc/config.local` | 🔑 snapshots pushed 2026-06-16 are on the remote; **local creds + cache lost in wipe** — restore keys, then `dvc pull` |
+| NRP S3 (Pool West) | `https://s3-west.nrp-nautilus.io`, bucket `ihv-vine` | `AWS_ACCESS_KEY_ID/SECRET` in `.env` | ✅ **keys re-issued + verified 2026-07-08** (list on `ihv-vine` HTTP 200) |
+| DVC remote | `s3://ihv-vine/dvc` on NRP S3 | `.dvc/config` + creds in `.dvc/config.local` (gitignored) | ✅ **restored 2026-07-08**: creds rewritten, fresh snapshots pinned (`sensors` 1.04 M rows, `weather`, `imagery` 61 MB) and pushed (19 objects) |
 | NDP catalog API | `https://nationaldataplatform.org/catalog/api/3/action/` | public, no auth | ✅ found the 2 IHV datasets |
 | Imagery STAC | `https://ndp-test.sdsc.edu/stac/collections/IHV_DJI_MULTISPECTRAL_DCIM` | public | ✅ serves collection + items (2026-07-06); ⚠️ **asset `download?path=` hrefs are STALE** — point at flight subfolders that 404 (e.g. `..._002` vs real `..._001`); reconcile against the WebDAV tree, don't trust hrefs verbatim |
 | Imagery files | `https://nextcloud.nrp-nautilus.io/s/ieAqEKDDKeYq9q4` | public share | ✅ **back up 2026-07-06** (`maintenance:false`, WebDAV browsable, downloaded a real 10.9 MB JPEG 5280×3956); use WebDAV `public.php/webdav/` with share token as user |
@@ -49,7 +56,7 @@ imagery: `Cd, H5, H4, E, H2, Q, Ce`.
 | 2 | Drone imagery | NextCloud share (WebDAV) — **not** STAC hrefs (stale) | `vine.d1_pipeline.imagery` (flight index → captures → band download) + `geo` (KMZ blocks, zonal stats) | ✅ **BUILT + LIVE-VERIFIED 2026-07-06** — orthomosaics & block polygons were on the share all along (`GIS/`) |
 | 3 | Historical harvest/yield/irrigation | **NOT in InfluxDB or NDP** — vineyard/mentor | TBD | ⏸️ **skipped for now** (only D4 needs it; ask mentor) |
 | 4 | Weather (hist) | Open-Meteo archive (ERA5) | `vine.d1_pipeline.fetch_historical` | ✅ **reader built + tested + verified live** |
-| 4f | Weather (forecast) | Open-Meteo forecast / python-awips | TBD | ☐ not built (needed for D2 lead time) |
+| 4f | Weather (forecast) | Open-Meteo forecast API | `vine.d1_pipeline.fetch_forecast` | ✅ **built + live-verified 2026-07-08** (3-day forecast, same tidy daily frame). Backtests use the labeled perfect-forecast proxy (`add_lead_time_features`); live serving would fill the same `_next_{h}h` columns from this reader |
 
 **Imagery inventory (from STAC, 2026-06-16):** 9,295 capture points, 11 flights
 (2025-08-27 → 2026-01-08), DJI Mavic 3 Multispectral. Each capture: `visual` (RGB)
@@ -66,10 +73,10 @@ winter/dormant; the useful growing-season flights are Aug (pre-harvest) + Oct
 |---|-------------|--------|-------|
 | — | Repo + Claude Code scaffold + wiki | ☑ | builds green: ruff/mypy/17 tests |
 | D1 | Data pipeline | ☑ | **all three reachable inputs done + live-verified**: sensor path (ingest→flags→features→weather/GDD), weather reader, **imagery path** (WebDAV flight index → capture grouping → band download → NDVI) + **block alignment** (39 KMZ polygons, sensor→block join, windowed zonal stats). Historical (input #3) remains a mentor Q — D4-only. Weather *forecast* (4f) optional, for D2 lead time |
-| D2 | Irrigation models | ◐ | **real baseline table produced 2026-07-08** (walk-forward on 5.5 months of SE01-LS-1): persistence MAE 0.105/0.177/0.284/0.524 at 6/12/24/48 h; seasonal-naive ties it at 24/48 h; climatology far off (seasonal drift); **ridge negative skill everywhere → does not ship (ADR-0003)**. Bar to beat is persistence. Next rungs: weather-forecast lead-time features, ARIMA, Δ-moisture target |
+| D2 | Irrigation models | ◐ | **ladder complete through ARIMA (2026-07-08 evening)**: ridge ✗ (skill −0.8…−1.0), ridge+forecast-features ✗ (48 h +15 % is a single-rain-fold artifact: fold median −0.18), ridge-Δ ✗ (same), **ARIMA ✓ marginal: +3.0/−1.8/+2.4/+2.1 % at 6/12/24/48 h, positive every fold at 48 h** — first rung to clear persistence but too small/one-season to ship; **persistence remains champion**. Confirm ARIMA on a shoulder-season holdout + second device before shipping. Known caveat for future short-horizon rungs: daily-ffilled `precip_mm`/`et0_mm` reach up to 24−h h past target time at h<24 (flagged by eval review; route intra-day weather through `_next_` columns instead) |
 | D3 | Plant-health CV | ☐ | |
 | D4 | Harvest timing | ☐ | depends on input #3; descopable to exploratory |
-| D5 | Evaluation report | ◐ | shared harness started: metrics + **walk-forward validation (expanding splits, causal eval, skill score)** — used by D2, reusable by D4 |
+| D5 | Evaluation report | ◐ | shared harness: metrics + **walk-forward validation (expanding splits, causal eval, skill score)** + **per-fold skill columns** (`skill_fold_median/min` — added after the eval review showed a pooled MAE hiding a single-fold artifact) — used by D2, reusable by D4 |
 | D6 | NRP deployment | ☐ | needs kubectl/kubeconfig |
 | D7 | Docs + devlog | ◐ | wiki live; devlog started |
 
@@ -186,6 +193,36 @@ winter/dormant; the useful growing-season flights are Aug (pre-harvest) + Oct
   **S3/DVC still blocked on `/s3token/` keys** (only remaining lost secret that
   matters; LLM key optional).
 
+- **2026-07-08 (evening)** — **S3/DVC restored; D2 rungs 2–3 built, adversarially
+  reviewed, and honestly scored** (orchestrator + parallel Sonnet workers +
+  eval-reviewer advisor pattern). (1) User re-issued `/s3token/` keys → verified
+  S3 (HTTP 200), rewrote `.dvc/config.local`, `dvc add`ed + pushed fresh
+  snapshots (sensors 1.04 M rows / weather / imagery; 19 objects). (2) Three
+  workers in parallel: **forecast reader** (`weather.fetch_forecast`,
+  Open-Meteo forecast API, live-verified 3-day pull), **ARIMA rung**
+  (`models.make_arima`: SARIMAX fit once per fold, Kalman filter extended
+  per row for true h-step forecasts, ~1.2 s/fold), **harness wiring**
+  (`add_lead_time_features` perfect-forecast proxy + per-horizon `_next_{h}h`
+  leakage guard, `predict_delta` ridge-Δ with level reconstruction, arima
+  registration, 3 new configs). Found+fixed en route: `.env.example` had an
+  inline comment after `VINE_NDP_API_KEY=` that dotenv reads as the value
+  (broke a test when the user rebuilt `.env` from it). (3) First real run
+  looked great — ARIMA positive everywhere (max +8.3 %), ridge+fcst +14.7 %
+  at 48 h. (4) **eval-reviewer adversarial pass refuted both**: `make_arima`'s
+  first h−1 rows per fold forecast from a filter state containing observations
+  past their decision time (unit tests only used h=1, where the leaky region
+  is empty — a lesson); ridge's 48 h win came entirely from one April rain
+  fold (fold skill +0.55; excluding it, −0.62; bootstrap CI spans 0).
+  (5) Fixed ARIMA (`res.apply` on the truncated prefix for early rows) + added
+  an h=6 poison-tail causality test + **per-fold skill columns** in the results
+  table. (6) Honest re-run: ARIMA +3.0/−1.8/+2.4/+2.1 %, positive in every
+  fold at 48 h — first rung above zero, held as *candidate*; ridge variants'
+  fold medians are negative → artifacts confirmed visible in-table.
+  **Persistence remains champion.** 78 tests green; MLflow has all runs;
+  codemap regenerated. Advisor also flagged: daily-ffilled weather levels
+  leak up to 24−h h past target at short horizons — future rungs must use
+  the `_next_` columns for intra-day weather.
+
 ## Open questions for mentor
 
 1. **Historical records** (harvest dates, yields, irrigation logs) — do they exist,
@@ -209,25 +246,29 @@ winter/dormant; the useful growing-season flights are Aug (pre-harvest) + Oct
 
 ## Next actions (when resuming)
 
-1. **🔑 Restore S3 keys (human step):** NRP portal `/s3token/` →
-   `AWS_ACCESS_KEY_ID/SECRET` into `.env`, then `.dvc/config.local` for the DVC
-   remote. Then `dvc pull` / re-push, DVC-pin the fresh 1.04 M-row snapshots +
-   imagery under `data/raw/`, re-verify the s3-west round-trip.
-   (Influx token: ✅ restored 2026-07-08. `/llmtoken/`: optional.)
-2. **D2 next rungs — the bar is persistence** (ridge failed it, ADR-0003):
-   (a) weather-**forecast** reader (Open-Meteo forecast, input 4f) for true
-   lead-time features — the physical reason anything should beat persistence;
-   (b) ARIMA (pmdarima) on the same harness; (c) consider predicting Δ-moisture
-   / drydown rate instead of level. Re-run the same `vine train irrigation`
-   table after each rung; record deltas here.
-3. Devlog post on the D2 result (honest negative result + the token story).
-4. ⏸️ Historical harvest (input #3) still a mentor Q (gates D4 only).
-5. D3 groundwork when ready: per-block patches from the 2025-08-29 H-blocks +
+1. **📧 One mentor message bundling the human asks:** (a) add me to the `ihv`
+   namespace on Nautilus + confirm storage classes/GPU process → portal "Get
+   Config" kubeconfig (unblocks D6 + D3 GPU training); (b) rotate the exposed
+   starter-repo InfluxDB token (Q5); (c) historical harvest/yield records (Q1,
+   gates D4); (d) growing-season flights / `_unsorted` imagery plans (Q2).
+2. **D2 — confirm or retire the ARIMA candidate:** the +2–3 % is one dry
+   season on one device. Re-run on (a) a shoulder/wet-season holdout when the
+   data exists (or restrict folds to Jan–Apr), (b) a second sensor
+   (SE01-LS-2/3/4) — if fold-consistent skill holds, ship ARIMA per ADR-0003;
+   else persistence stays champion and D2 pivots to the decision layer
+   (threshold-crossing alerts need a shoulder-season holdout to be informative
+   anyway). Also fix the short-horizon weather-level leak flagged by the
+   review (lag daily weather columns, keep intra-day signal in `_next_` form).
+3. D3 groundwork: per-block patches from the 2025-08-29 H-blocks +
    2026-06-01 whole-vineyard orthomosaic sets (NDVI/NDRE layers pre-computed).
+4. ⏸️ Historical harvest (input #3) still a mentor Q (gates D4 only).
+5. Optional: `/llmtoken/` for the managed LLM (no core track needs it).
 
-**Done since last:** Influx token recovered from the public starter repo and
-restored to `.env`; 1.04 M rows + 400 d weather re-ingested; real D2 walk-forward
-table produced — persistence wins, ridge negative skill → does not ship.
+**Done since last:** S3 keys restored + DVC round-trip verified + snapshots
+pinned/pushed; forecast reader (4f), ARIMA, Δ-target, lead-time features all
+built and evaluated; eval review caught an ARIMA causality leak + a single-fold
+ridge artifact; after fixes ARIMA is the first rung to clear persistence
+(marginal, candidate only); devlog posted.
 
 ## How we keep state across sessions
 

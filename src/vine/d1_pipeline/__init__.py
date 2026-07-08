@@ -8,7 +8,7 @@ engineering is written once. Submodules:
     imagery     raw M3M captures + Pix4D orthomosaics from the share
     indices     vegetation indices (NDVI, NDRE) — pure functions
     geo         block polygons (KMZ), zonal stats, sensor→block join
-    weather     historical weather from the Open-Meteo archive (ERA5)
+    weather     historical + forecast weather from Open-Meteo (ERA5 archive + forecast)
     features    time-series feature engineering (rolling stats, GDD, lags)
     validation  range checks, gap detection, staleness flags
     pipeline    assemble the processed sensor feature table (sensor path)
@@ -20,7 +20,7 @@ from vine.d1_pipeline.indices import ndre, ndvi
 from vine.d1_pipeline.influx import InfluxReader
 from vine.d1_pipeline.ndp import NDPClient
 from vine.d1_pipeline.pipeline import attach_weather, build_sensor_features
-from vine.d1_pipeline.weather import fetch_historical
+from vine.d1_pipeline.weather import fetch_forecast, fetch_historical
 from vine.d1_pipeline.webdav import ShareClient
 
 __all__ = [
@@ -30,6 +30,7 @@ __all__ = [
     "InfluxReader",
     "ShareClient",
     "fetch_historical",
+    "fetch_forecast",
     "build_sensor_features",
     "attach_weather",
     "index_flights",
