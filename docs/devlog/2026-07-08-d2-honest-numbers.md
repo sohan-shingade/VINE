@@ -100,8 +100,31 @@ alongside the aggregate, so a single-fold artifact can never headline again.
 ARIMA's 48 h skill is small but *positive in every fold* — the first honest
 signal above zero in this project. It stays a **candidate**, not a champion:
 one dry season on one device, and +2 % isn't a reason to replace a model
-with no parameters. Next: re-test on a wetter holdout and a second sensor;
-if the fold-consistent skill holds, it ships.
+with no parameters. Next: re-test on the other sensors; if the
+fold-consistent skill holds, it ships.
+
+## Postscript, same night: the candidate is dead
+
+We ran the confirmation immediately — same config, sensors SE01-LS-2/3/4
+(each ~190–200 k rows over the same 5.5 months):
+
+| sensor | 6 h | 12 h | 24 h | 48 h |
+|---|---|---|---|---|
+| LS-1 | +3.0 % | −1.8 % | +2.4 % | +2.1 % |
+| LS-2 | −6.1 % | −12.2 % | −18.0 % | −10.1 % |
+| LS-3 | +1.7 % | +2.3 % | −3.0 % | −1.7 % |
+| LS-4 | +3.8 % | −1.9 % | +2.0 % | +1.8 % |
+
+A model that gains 2 % on two sensors and loses 10–18 % on a third is not a
+model, it's a coin with site-specific weighting. **Ship decision, per
+ADR-0003: persistence is the D2 forecaster.**
+
+The consolation prize is real, though: unlike LS-1, the other sensors'
+holdouts actually cross the 25.0 irrigation threshold — and the persistence
+alert ("will moisture be below threshold in h hours?") scores precision and
+recall of **0.95–0.99** there. The humble answer — *the latest reading is
+your forecast; alert on it* — turns out to be an operationally excellent
+irrigation advisor. That's what D6 will serve.
 
 ## What the orchestration bought us
 

@@ -3,8 +3,8 @@
 > **Single source of truth for "where are we."** Git-tracked so it survives any
 > session, machine, or context reset. **Any new session: read this first.**
 > Update it at the end of any session that changes status. Last updated:
-> **2026-07-08 (evening)**. Phase: **D2 ladder complete through ARIMA; S3/DVC
-> restored; persistence still champion, ARIMA a marginal candidate**.
+> **2026-07-08 (night)**. Phase: **D2 ship decision made: persistence is the
+> champion (ARIMA candidate refuted on other sensors); S3/DVC restored**.
 
 ## TL;DR — resume here
 
@@ -17,11 +17,12 @@ per-horizon leakage guard). An adversarial eval-review then **caught a real
 causality bug in ARIMA** (early-fold rows forecast from a Kalman state that
 had seen past their decision time) and exposed ridge+forecast's 48 h "+15%"
 as a **single April-rain-fold artifact**. After the fix + per-fold skill
-columns: **ARIMA is the first rung to clear persistence — +3.0/−1.8/+2.4/+2.1 %
-at 6/12/24/48 h, positive in every fold at 48 h — but too small/one-season to
-ship yet; persistence stays champion** pending a shoulder-season holdout.
-Remaining human steps: mentor asks (kubeconfig for NRP compute, token rotation,
-harvest records).
+columns, ARIMA briefly led (+2–3 % on SE01-LS-1) — then the **multi-device
+confirmation run refuted it**: LS-2 −6…−18 % at every horizon, LS-3 mixed.
+**Ship decision (ADR-0003): persistence is the D2 forecaster.** Silver lining:
+on LS-2/3/4 the holdout crosses the irrigation threshold and persistence's
+alert P/R is 0.95–0.99 — the decision layer works. Remaining human steps:
+mentor asks (kubeconfig for NRP compute, token rotation, harvest records).
 
 ## Verified facts & live endpoints
 
@@ -73,7 +74,7 @@ winter/dormant; the useful growing-season flights are Aug (pre-harvest) + Oct
 |---|-------------|--------|-------|
 | — | Repo + Claude Code scaffold + wiki | ☑ | builds green: ruff/mypy/17 tests |
 | D1 | Data pipeline | ☑ | **all three reachable inputs done + live-verified**: sensor path (ingest→flags→features→weather/GDD), weather reader, **imagery path** (WebDAV flight index → capture grouping → band download → NDVI) + **block alignment** (39 KMZ polygons, sensor→block join, windowed zonal stats). Historical (input #3) remains a mentor Q — D4-only. Weather *forecast* (4f) optional, for D2 lead time |
-| D2 | Irrigation models | ◐ | **ladder complete through ARIMA (2026-07-08 evening)**: ridge ✗ (skill −0.8…−1.0), ridge+forecast-features ✗ (48 h +15 % is a single-rain-fold artifact: fold median −0.18), ridge-Δ ✗ (same), **ARIMA ✓ marginal: +3.0/−1.8/+2.4/+2.1 % at 6/12/24/48 h, positive every fold at 48 h** — first rung to clear persistence but too small/one-season to ship; **persistence remains champion**. Confirm ARIMA on a shoulder-season holdout + second device before shipping. Known caveat for future short-horizon rungs: daily-ffilled `precip_mm`/`et0_mm` reach up to 24−h h past target time at h<24 (flagged by eval review; route intra-day weather through `_next_` columns instead) |
+| D2 | Irrigation models | ☑ (core) | **Ship decision made 2026-07-08 (ADR-0003): persistence is the champion.** Full ladder evaluated walk-forward on 4 sensors × 5.5 months: ridge ✗ (−0.8…−1.0), ridge+forecast ✗ (48 h +15 % = single-rain-fold artifact), ridge-Δ ✗, ARIMA ✗ (won +2–3 % on LS-1/LS-4 but −6…−18 % on LS-2, mixed on LS-3 — not robust). Decision layer: on LS-2/3/4 (holdouts that cross the 25.0 threshold) persistence alert P/R = 0.95–0.99. Remaining (non-gating): expose persistence+threshold via D6; Prophet/LSTM descoped on evidence (confirm w/ mentor); short-horizon weather-ffill caveat if rungs are ever revisited (daily `precip_mm`/`et0_mm` reach past target at h<24 — use `_next_` columns) |
 | D3 | Plant-health CV | ☐ | |
 | D4 | Harvest timing | ☐ | depends on input #3; descopable to exploratory |
 | D5 | Evaluation report | ◐ | shared harness: metrics + **walk-forward validation (expanding splits, causal eval, skill score)** + **per-fold skill columns** (`skill_fold_median/min` — added after the eval review showed a pooled MAE hiding a single-fold artifact) — used by D2, reusable by D4 |
@@ -223,6 +224,17 @@ winter/dormant; the useful growing-season flights are Aug (pre-harvest) + Oct
   leak up to 24−h h past target at short horizons — future rungs must use
   the `_next_` columns for intra-day weather.
 
+- **2026-07-08 (night)** — **ARIMA candidate refuted; D2 ship decision made.**
+  Confirmation runs on the other three soil sensors (same config, ~190–200 k
+  raw rows each, same 5.5-month span): LS-2 **negative at every horizon**
+  (−6.1/−12.2/−18.0/−10.1 %), LS-3 mixed (+1.7/+2.3/−3.0/−1.7 %), LS-4
+  echoes LS-1 (+3.8/−1.9/+2.0/+1.8 %). A model that loses 10–18 % on one of
+  four sensors does not ship → **persistence is the D2 forecaster (ADR-0003).**
+  New signal: LS-2/3/4 holdouts *do* cross the 25.0 irrigation threshold, and
+  persistence's alert precision/recall there is 0.95–0.99 — the decision layer
+  is genuinely strong. All runs in MLflow (`d2_irrigation`). (SE0X-LS-1 has no
+  `soil_water` column — excluded.)
+
 ## Open questions for mentor
 
 1. **Historical records** (harvest dates, yields, irrigation logs) — do they exist,
@@ -251,24 +263,21 @@ winter/dormant; the useful growing-season flights are Aug (pre-harvest) + Oct
    Config" kubeconfig (unblocks D6 + D3 GPU training); (b) rotate the exposed
    starter-repo InfluxDB token (Q5); (c) historical harvest/yield records (Q1,
    gates D4); (d) growing-season flights / `_unsorted` imagery plans (Q2).
-2. **D2 — confirm or retire the ARIMA candidate:** the +2–3 % is one dry
-   season on one device. Re-run on (a) a shoulder/wet-season holdout when the
-   data exists (or restrict folds to Jan–Apr), (b) a second sensor
-   (SE01-LS-2/3/4) — if fold-consistent skill holds, ship ARIMA per ADR-0003;
-   else persistence stays champion and D2 pivots to the decision layer
-   (threshold-crossing alerts need a shoulder-season holdout to be informative
-   anyway). Also fix the short-horizon weather-level leak flagged by the
-   review (lag daily weather columns, keep intra-day signal in `_next_` form).
-3. D3 groundwork: per-block patches from the 2025-08-29 H-blocks +
-   2026-06-01 whole-vineyard orthomosaic sets (NDVI/NDRE layers pre-computed).
+2. **D3 — start the CV track** (next major build): per-block patches from the
+   2025-08-29 H-blocks + 2026-06-01 whole-vineyard orthomosaic sets (NDVI/NDRE
+   layers pre-computed). Needs mentor Q3 (labels) answered to go supervised;
+   unsupervised per-block stress ranking (NDVI distribution shifts) can start
+   without labels.
+3. **D6 groundwork once kubeconfig lands:** serve the shipped D2 answer —
+   `/irrigation` = latest reading + persistence forecast + threshold alert
+   (P/R 0.95–0.99 on sensors that cross it).
 4. ⏸️ Historical harvest (input #3) still a mentor Q (gates D4 only).
 5. Optional: `/llmtoken/` for the managed LLM (no core track needs it).
 
-**Done since last:** S3 keys restored + DVC round-trip verified + snapshots
-pinned/pushed; forecast reader (4f), ARIMA, Δ-target, lead-time features all
-built and evaluated; eval review caught an ARIMA causality leak + a single-fold
-ridge artifact; after fixes ARIMA is the first rung to clear persistence
-(marginal, candidate only); devlog posted.
+**Done since last:** S3/DVC restored + snapshots pinned; forecast reader (4f),
+ARIMA, Δ-target, lead-time features built; eval review caught an ARIMA
+causality leak + a single-fold ridge artifact; multi-device confirmation
+refuted ARIMA → **D2 ship decision: persistence champion**; devlog posted.
 
 ## How we keep state across sessions
 
