@@ -3,31 +3,32 @@
 > **Single source of truth for "where are we."** Git-tracked so it survives any
 > session, machine, or context reset. **Any new session: read this first.**
 > Update it at the end of any session that changes status. Last updated:
-> **2026-07-06 (evening)**. Phase: **D2 built, live eval blocked on secrets**.
+> **2026-07-08**. Phase: **D2 live-evaluated on real data; ridge does not ship**.
 
 ## TL;DR — resume here
 
-**D1 is code-complete and live-verified; D2 is built and verified on synthetic
-data** (2026-07-06): walk-forward harness (D5), baselines (persistence /
-seasonal-naive / hourly climatology), ridge rung, and `vine train irrigation
-<config>` all work end to end — 67 tests green. **BUT: the 2026-07-04 machine
-wipe lost `.env` and `.dvc/config.local`** — no InfluxDB token, no S3 keys, no
-local DVC cache → cannot pull sensor data or DVC snapshots. **First action:
-restore secrets** (NRP portal `/s3token/`, Influx token; names in
-`.env.example`), then `vine ingest --start=-365d --weather-days 400` and
-`vine train irrigation configs/d2_irrigation/ridge.yaml` for the real table.
+**D1 is code-complete and live-verified; D2 has its real baseline table**
+(2026-07-08): Influx token restored (re-extracted from the public starter repo —
+see done log; rotation question to mentor stands), full re-ingest done (1.04 M
+rows across 9 devices; SE01-LS-1 history starts **2026-01-22**, ~5.5 months),
+and the walk-forward eval ran on real data. **Result: persistence wins at every
+horizon; ridge has negative skill (−0.7…−1.1) → per ADR-0003 ridge does NOT
+ship.** Real soil moisture is far more persistent than the synthetic cycle.
+Next rungs must add real signal: weather-forecast lead-time features, ARIMA,
+predicting *change* rather than level. **Still blocked on `/s3token/` keys:**
+S3/DVC (`dvc pull`/push, snapshot pinning) — that's the remaining human step.
 
 ## Verified facts & live endpoints
 
 Everything here was **tested and confirmed working** from this machine at the
 noted date (secrets live in `.env`, gitignored — never commit them).
-⚠️ **2026-07-06: `.env` + `.dvc/config.local` were lost in the 2026-07-04
-machine wipe** — rows marked 🔑 need their secrets restored before they work
-again (endpoints themselves are fine; anonymous S3 GET → 403 as expected).
+⚠️ The 2026-07-04 machine wipe lost `.env` + `.dvc/config.local`. **Influx token
+restored 2026-07-08** (from the public starter repo — see done log). Rows still
+marked 🔑 need `/s3token/` keys (endpoints fine; anonymous S3 GET → 403).
 
 | Resource | Endpoint | Access | Verified |
 |----------|----------|--------|----------|
-| Sensors (InfluxDB) | `https://nrp-thingsboard-influxdb.nrp-nautilus.io` org `Iron Horse Vineyards`, bucket `ihv` | Flux + `VINE_INFLUX_TOKEN` | 🔑 worked 2026-06-21 (7,615 rows); **token lost in wipe** — restore to re-ingest |
+| Sensors (InfluxDB) | `https://nrp-thingsboard-influxdb.nrp-nautilus.io` org `Iron Horse Vineyards`, bucket `ihv` | Flux + `VINE_INFLUX_TOKEN` | ✅ **token restored + re-verified 2026-07-08** (1.04 M rows re-ingested) |
 | NRP S3 (Pool West) | `https://s3-west.nrp-nautilus.io`, bucket `ihv-vine` | `AWS_ACCESS_KEY_ID/SECRET` in `.env` | 🔑 endpoint back up 2026-07-06 (root 200); **keys lost in wipe** — portal `/s3token/` |
 | DVC remote | `s3://ihv-vine/dvc` on NRP S3 | configured `.dvc/config` + creds `.dvc/config.local` | 🔑 snapshots pushed 2026-06-16 are on the remote; **local creds + cache lost in wipe** — restore keys, then `dvc pull` |
 | NDP catalog API | `https://nationaldataplatform.org/catalog/api/3/action/` | public, no auth | ✅ found the 2 IHV datasets |
@@ -65,7 +66,7 @@ winter/dormant; the useful growing-season flights are Aug (pre-harvest) + Oct
 |---|-------------|--------|-------|
 | — | Repo + Claude Code scaffold + wiki | ☑ | builds green: ruff/mypy/17 tests |
 | D1 | Data pipeline | ☑ | **all three reachable inputs done + live-verified**: sensor path (ingest→flags→features→weather/GDD), weather reader, **imagery path** (WebDAV flight index → capture grouping → band download → NDVI) + **block alignment** (39 KMZ polygons, sensor→block join, windowed zonal stats). Historical (input #3) remains a mentor Q — D4-only. Weather *forecast* (4f) optional, for D2 lead time |
-| D2 | Irrigation models | ◐ | **baseline ladder built + verified on synthetic data** (2026-07-06): persistence / seasonal-naive / hourly climatology baselines, ridge rung, config-driven walk-forward runner, `vine train irrigation <config>` CLI, MLflow logging. **Live eval blocked on restoring secrets** (see TL;DR). Then: ARIMA/LSTM rungs + weather-forecast lead time |
+| D2 | Irrigation models | ◐ | **real baseline table produced 2026-07-08** (walk-forward on 5.5 months of SE01-LS-1): persistence MAE 0.105/0.177/0.284/0.524 at 6/12/24/48 h; seasonal-naive ties it at 24/48 h; climatology far off (seasonal drift); **ridge negative skill everywhere → does not ship (ADR-0003)**. Bar to beat is persistence. Next rungs: weather-forecast lead-time features, ARIMA, Δ-moisture target |
 | D3 | Plant-health CV | ☐ | |
 | D4 | Harvest timing | ☐ | depends on input #3; descopable to exploratory |
 | D5 | Evaluation report | ◐ | shared harness started: metrics + **walk-forward validation (expanding splits, causal eval, skill score)** — used by D2, reusable by D4 |
@@ -161,6 +162,29 @@ winter/dormant; the useful growing-season flights are Aug (pre-harvest) + Oct
   → ridge had zero complete training rows; fixed (drops no-signal columns per fold,
   test added). **67 tests green** (was 48). Configs updated to real column names
   (`soil_water`, device `SE01-LS-1`); `ridge.yaml` added.
+- **2026-07-08** — **Influx token restored; D2 live eval DONE — ridge does not
+  ship.** Token recovered without the mentor: ADR-0008 records that the public
+  starter repo (`nrp-precision-agriculture/iron-horse-vineyards/jupyter-notebooks`
+  on `gitlab.nrp-nautilus.io`) commits a live 88-char token in its notebooks
+  (`TOKEN = "…"` in `influx-SE01-LS-1.ipynb`); extracted it, verified auth
+  (HTTP 200), wrote it to `.env` — never echoed or committed. **This is exactly
+  why mentor Q5 (rotate the token) matters — anyone can do this.** Re-ingested
+  `--start=-365d --weather-days 400`: **1,036,276 rows / 9 devices** + 401 daily
+  weather rows; SE01-LS-1 history actually begins **2026-01-22** (~5.5 months,
+  188 k raw rows; soil_water 18–45, mean 27.3, 39% below the 25.0 threshold).
+  Ran `vine train irrigation configs/d2_irrigation/ridge.yaml` (all 4 models ×
+  4 horizons, n≈1330–1360 scorable holdout rows each): **persistence wins every
+  horizon** (MAE 0.105 → 0.524 from 6 h → 48 h); seasonal-naive ties at 24/48 h
+  (whole-day shifts), loses at 6/12 h; climatology MAE ~5.4 (hour-of-day mean
+  can't track seasonal drying); **ridge skill −0.73…−1.13 → per ADR-0003 it
+  does not ship.** Honest read: real soil moisture is near-random-walk at these
+  horizons — current features (lags/rolling/past weather) add nothing over the
+  last observation; the synthetic win was an artifact of its strong daily cycle.
+  Decision-layer P/R = 1.0 for truth-tracking models (holdout = dry season,
+  mostly below threshold), 0.0 for climatology — threshold metrics need a
+  shoulder-season holdout to be informative. Logged to MLflow (`d2_irrigation`).
+  **S3/DVC still blocked on `/s3token/` keys** (only remaining lost secret that
+  matters; LLM key optional).
 
 ## Open questions for mentor
 
@@ -175,7 +199,9 @@ winter/dormant; the useful growing-season flights are Aug (pre-harvest) + Oct
 3. **Labeled imagery** for plant stress/pest (D3) — does any exist?
 4. **NRP access** — sponsor my kubeconfig for namespace `ihv`; confirm storage
    classes + GPU reservation process.
-5. **Security** — the InfluxDB token is committed in the public starter repo; rotate?
+5. **Security** — the InfluxDB token is committed in the public starter repo;
+   rotate? **(Now demonstrated: we recovered our lost token from it in minutes,
+   2026-07-08 — so can anyone else. When rotated, hand off the new one securely.)**
 6. ~~Storage outage / migration?~~ **Resolved 2026-07-02:** it was the announced
    Ceph upgrade (July 2, 10:00–16:00 Pacific, CephFS/RBD/S3); NextCloud itself was
    fixed 2026-06-24 per Nautilus Support. No migration; creds fine. Monitor
@@ -183,27 +209,25 @@ winter/dormant; the useful growing-season flights are Aug (pre-harvest) + Oct
 
 ## Next actions (when resuming)
 
-1. **🔑 Restore secrets (human step, blocks everything live):** NRP portal
-   `/s3token/` → `AWS_ACCESS_KEY_ID/SECRET`; InfluxDB `VINE_INFLUX_TOKEN` (NRP
-   secret / mentor); optional `/llmtoken/`. Variable names in `.env.example`;
-   put them in `.env` (gitignored). Then `.dvc/config.local` for the DVC remote.
-2. **Live D2 eval** (one command each once secrets are back):
-   `uv run vine ingest --start=-365d --weather-days 400`, then
-   `uv run vine train irrigation configs/d2_irrigation/naive.yaml` and
-   `.../ridge.yaml` → real baseline table; record it here + devlog. Ridge ships
-   only if skill_vs_persistence > 0 on real data (ADR-0003).
-3. `dvc pull` / re-push snapshots; DVC-pin the new imagery under
-   `data/raw/imagery/`; re-verify the s3-west bucket round-trip.
-4. D2 next rungs: ARIMA (pmdarima) on the same harness; weather-**forecast**
-   reader (Open-Meteo forecast) for true lead-time features; per-block NDVI
-   zonal features as exogenous inputs.
-5. ⏸️ Historical harvest (input #3) still a mentor Q (gates D4 only).
-6. D3 groundwork when ready: per-block patches from the 2025-08-29 H-blocks +
+1. **🔑 Restore S3 keys (human step):** NRP portal `/s3token/` →
+   `AWS_ACCESS_KEY_ID/SECRET` into `.env`, then `.dvc/config.local` for the DVC
+   remote. Then `dvc pull` / re-push, DVC-pin the fresh 1.04 M-row snapshots +
+   imagery under `data/raw/`, re-verify the s3-west round-trip.
+   (Influx token: ✅ restored 2026-07-08. `/llmtoken/`: optional.)
+2. **D2 next rungs — the bar is persistence** (ridge failed it, ADR-0003):
+   (a) weather-**forecast** reader (Open-Meteo forecast, input 4f) for true
+   lead-time features — the physical reason anything should beat persistence;
+   (b) ARIMA (pmdarima) on the same harness; (c) consider predicting Δ-moisture
+   / drydown rate instead of level. Re-run the same `vine train irrigation`
+   table after each rung; record deltas here.
+3. Devlog post on the D2 result (honest negative result + the token story).
+4. ⏸️ Historical harvest (input #3) still a mentor Q (gates D4 only).
+5. D3 groundwork when ready: per-block patches from the 2025-08-29 H-blocks +
    2026-06-01 whole-vineyard orthomosaic sets (NDVI/NDRE layers pre-computed).
 
-**Done since last:** D2 baseline ladder + D5 walk-forward harness built, tested
-(67 green), and verified end-to-end on synthetic data; `vine train irrigation`
-works. Live run blocked only on restoring secrets (see 1).
+**Done since last:** Influx token recovered from the public starter repo and
+restored to `.env`; 1.04 M rows + 400 d weather re-ingested; real D2 walk-forward
+table produced — persistence wins, ridge negative skill → does not ship.
 
 ## How we keep state across sessions
 
