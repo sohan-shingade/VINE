@@ -273,11 +273,14 @@ winter/dormant; the useful growing-season flights are Aug (pre-harvest) + Oct
 
 ## Next actions (when resuming)
 
-1. **📧 One mentor message bundling the human asks:** (a) add me to the `ihv`
-   namespace on Nautilus + confirm storage classes/GPU process → portal "Get
-   Config" kubeconfig (unblocks D6 + D3 GPU training); (b) rotate the exposed
-   starter-repo InfluxDB token (Q5); (c) historical harvest/yield records (Q1,
-   gates D4); (d) growing-season flights / `_unsorted` imagery plans (Q2).
+1. **📧 Mentor message: DRAFTED 2026-07-09** (Gmail draft, reply-all on the
+   "VINE data questions" thread w/ Firas + John Graham) bundling all four asks
+   (kubeconfig, token rotation, harvest records, imagery plans) + midterm
+   status + links. **Send after pushing main to GitHub** (links reference the
+   public repo). Midterm report: `docs/reports/2026-07-midterm.html` (+ gist
+   preview, figures via `scripts/midterm_*.py`); repo made **public** on
+   GitHub w/ description+topics; GSoC midterm eval window closes **Jul 10,
+   18:00 UTC** — both parties must submit on the dashboard.
 2. **D3 — start the CV track** (next major build): per-block patches from the
    2025-08-29 H-blocks + 2026-06-01 whole-vineyard orthomosaic sets (NDVI/NDRE
    layers pre-computed). Needs mentor Q3 (labels) answered to go supervised;
