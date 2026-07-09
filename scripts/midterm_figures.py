@@ -229,3 +229,82 @@ ax.set_title("Why pooled metrics lie: ridge+forecast, 48 h, per fold")
 save(fig, "fig5_folds")
 
 print("all figures written to", OUT)
+
+
+# ---------------------------------------------------------------- figure 0
+# Proposal timeline (VINE_Proposal_1.pdf §5) with a "we are here" marker.
+from datetime import datetime  # noqa: E402
+
+UTC = None  # naive dates are fine for a Gantt chart
+d = datetime
+phases = [
+    # (label, start, end, status)  — dates from the proposal timeline table
+    ("Community bonding", d(2026, 5, 25), d(2026, 6, 14), "done"),
+    ("D1 · Data pipeline", d(2026, 6, 8), d(2026, 6, 28), "done"),
+    ("D2 · Irrigation models", d(2026, 6, 22), d(2026, 7, 12), "done"),
+    ("D3 · Plant-health CV", d(2026, 7, 6), d(2026, 7, 26), "current"),
+    ("D4+D5 · Harvest + eval report", d(2026, 7, 27), d(2026, 8, 9), "todo"),
+    ("D6 · NRP deployment", d(2026, 8, 3), d(2026, 8, 16), "todo"),
+    ("D7 · Docs + polish", d(2026, 8, 10), d(2026, 8, 24), "todo"),
+]
+status_color = {"done": GREEN, "current": BLUE, "todo": "#c3ccc1"}
+today = d(2026, 7, 9)
+midterm = d(2026, 7, 12)
+
+fig, ax = plt.subplots(figsize=(7.6, 3.3))
+for i, (label, start, end, status) in enumerate(phases):
+    y = len(phases) - i
+    ax.barh(
+        y,
+        end - start,
+        left=start,
+        height=0.55,
+        color=status_color[status],
+        alpha=0.95 if status != "todo" else 0.8,
+    )
+    ax.text(
+        start,
+        y + 0.42,
+        label,
+        fontsize=7.8,
+        va="bottom",
+        color=INK,
+        fontweight="bold" if status == "current" else "normal",
+    )
+ax.axvline(today, color=RED, lw=1.4)
+ax.text(
+    today,
+    len(phases) + 1.15,
+    " WE ARE HERE (Jul 9)",
+    color=RED,
+    fontsize=8.5,
+    fontweight="bold",
+    va="bottom",
+)
+ax.axvline(midterm, color=GREY, lw=1.0, ls=":")
+ax.text(
+    midterm,
+    0.42,
+    ' midterm eval — proposal target:\n "D1, D2 complete. D3 in progress"',
+    color=GREY,
+    fontsize=7.2,
+    va="bottom",
+)
+ax.set_ylim(0.3, len(phases) + 1.8)
+ax.set_yticks([])
+ax.grid(axis="y", visible=False)
+handles = [plt.Rectangle((0, 0), 1, 1, color=c) for c in (GREEN, BLUE, "#c3ccc1")]
+ax.legend(
+    handles,
+    ["done", "in progress", "upcoming"],
+    loc="upper right",
+    fontsize=7.5,
+    ncols=3,
+    bbox_to_anchor=(1.0, 1.14),
+)
+import matplotlib.dates as mdates  # noqa: E402
+
+ax.xaxis.set_major_locator(mdates.WeekdayLocator(byweekday=mdates.MO, interval=2))
+ax.xaxis.set_major_formatter(mdates.DateFormatter("%b %d"))
+ax.tick_params(axis="x", labelsize=7.5)
+save(fig, "fig0_timeline")
