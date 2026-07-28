@@ -1,0 +1,10 @@
+# Linear reference for the global cross-sensor rung.
+model: ridge
+target: soil_water
+features: [soil_water, soil_temperature, soil_conductivity]
+horizons_h: [6, 12, 24, 48]
+n_folds: 5
+predict_delta: true
+forecast_features: true
+alpha: 1.0
+irrigate_below: 25.0

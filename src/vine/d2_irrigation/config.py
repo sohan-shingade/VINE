@@ -7,7 +7,7 @@ from pydantic import BaseModel, Field
 
 class IrrigationConfig(BaseModel):
     model: str = Field(
-        description="naive | ridge | arima | forest | gbt implemented; prophet | lstm not built"
+        description="naive | ridge | arima | forest | gbt | water_balance implemented"
     )
     device: str = "SE01-LS-1"  # which sensor's snapshot to forecast
     target: str = "soil_water"  # column to forecast (a KIND_MEASUREMENTS name)
@@ -18,6 +18,17 @@ class IrrigationConfig(BaseModel):
     alpha: float = 1.0
     predict_delta: bool = False  # learn y(t) - y(t-h), reconstructed to level before scoring
     forecast_features: bool = False  # attach add_lead_time_features (perfect-forecast proxy)
+    # Water-balance-only knobs.
+    wb_use_level: bool = False  # add current moisture level as a 3rd feature
+    wb_gate_precip_mm: float | None = None  # apply correction only when rain > this
+    wb_robust: bool = False  # Huber (robust) Δ-regression — tames storm overshoot
+    wb_saturate_k: float | None = None  # cap correction at k × max observed |Δ|
+    wb_adaptive_blend: bool = False  # shrink correction by recent training evidence
+    wb_val_frac: float = Field(default=0.25, gt=0.0, lt=0.5)
+    wb_blend_weights: tuple[float, ...] = (0.0, 0.2, 0.4, 0.6, 0.8, 1.0)
+    wb_min_fit_rows: int = Field(default=20, ge=5)
+    wb_min_val_rows: int = Field(default=10, ge=5)
+    wb_huber_max_iter: int = Field(default=500, ge=50)
     # ARIMA-only knobs
     order: list[int] = [2, 1, 2]
     # Tree-model knobs (forest / gbt)

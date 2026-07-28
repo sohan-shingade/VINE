@@ -16,7 +16,7 @@ about CSV/JSON files were wrong.
 InfluxDB: https://nrp-thingsboard-influxdb.nrp-nautilus.io/
 org="Iron Horse Vineyards"  bucket="ihv"
 devices: SE01-LS-{1..4} (soil), SE0X-LS-1 (multi-depth), EM500-CO2-915M-{1..4},
-         SenseCAP-S2103-CO2-{1,2}
+         EM500-PP-4842 (raw pressure proxy), SenseCAP-S2103-CO2-{1,2}
 measurements: device_frmpayload_data_{conduct,temp,water}_SOIL, _co2,
               _humidity, _temperature, _pressure
 ```
@@ -28,6 +28,13 @@ token is read from `VINE_INFLUX_TOKEN` (an NRP secret) — **never hardcoded**.
 Raw pulls are snapshotted to `data/raw/` and pinned with DVC for reproducibility.
 NDP/CKAN ([ADR-0006](0006-ndp-data-access.md)) remains the channel for *published*
 dataset exports; InfluxDB is the *live* source.
+
+The raw pressure measurement is shared by unlike devices, so ingestion applies a
+device-aware alias: EM500-CO2 pressure remains atmospheric `pressure`, while
+EM500-PP-4842 is preserved as `pipe_pressure_raw`. A bounded 2026-07-23 profile
+found 22,256 observations spanning 2026-01-22 through 2026-07-23. Its engineering
+unit, active direction, served block, and relationship to irrigation events are
+not verified; the stream is descriptive only and is not a ground-truth label.
 
 ## Considered options
 - **Query InfluxDB directly (chosen)** — matches how the data actually flows;

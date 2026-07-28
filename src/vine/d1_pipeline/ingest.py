@@ -16,6 +16,7 @@ import pandas as pd
 
 from vine.common import get_logger, settings
 from vine.d1_pipeline.influx import DEVICES, InfluxReader
+from vine.d1_pipeline.validation import flag_out_of_range, gap_report, physical_range
 from vine.d1_pipeline.weather import fetch_historical
 
 log = get_logger(__name__)
@@ -30,7 +31,80 @@ KIND_MEASUREMENTS: dict[str, list[str]] = {
         "device_frmpayload_data_water_SOIL1",
     ],
     "air": ["co2", "humidity", "temperature", "pressure"],
+    "pipe_pressure": ["pressure"],
 }
+
+# Engineering units carried into quality profiles. EM500-PP-4842 is omitted:
+# its raw pressure encoding is known, but its physical unit is not yet verified.
+KIND_UNITS: dict[str, dict[str, str]] = {
+    "air": {"co2": "ppm", "humidity": "%", "temperature": "degC", "pressure": "hPa"},
+}
+
+
+def ingest_device(
+    device: str,
+    start: str,
+    stop: str | None = None,
+    out_dir: Path | None = None,
+    reader: InfluxReader | None = None,
+) -> pd.DataFrame:
+    """Pull and snapshot one known device over a bounded interval.
+
+    ``stop`` is required so profiling pulls cannot accidentally run unbounded.
+    The returned frame carries source/provenance metadata in ``DataFrame.attrs``.
+    """
+    if device not in DEVICES:
+        raise ValueError(f"Unknown device: {device}")
+    if stop is None:
+        raise ValueError("A stop bound is required for single-device ingestion")
+
+    kind = DEVICES[device]
+    reader = reader or InfluxReader()
+    frame = reader.read(device, KIND_MEASUREMENTS[kind], start=start, stop=stop)
+    frame.attrs.update(
+        {
+            "source": "influxdb",
+            "device": device,
+            "device_kind": kind,
+            "query_start": start,
+            "query_stop": stop,
+            "units": KIND_UNITS.get(kind, {}),
+        }
+    )
+    if not frame.empty and out_dir is not None:
+        out_dir.mkdir(parents=True, exist_ok=True)
+        frame.to_parquet(out_dir / f"{device}.parquet")
+    return frame
+
+
+def quality_profile(frame: pd.DataFrame, *, freq: str = "1h") -> pd.DataFrame:
+    """Summarize provenance, completeness, and safe range checks by column.
+
+    A column with an unknown unit reports no physical-range count. This blocks
+    downstream event semantics until the unit is verified rather than guessed.
+    """
+    units: dict[str, str] = frame.attrs.get("units", {})
+    gaps = gap_report(frame, freq=freq)
+    flags = flag_out_of_range(frame, units=units)
+    rows: list[dict[str, object]] = []
+    for column in frame.select_dtypes(include="number").columns:
+        unit = units.get(column)
+        semantic_ready = physical_range(column, unit) is not None
+        rows.append(
+            {
+                "device": frame.attrs.get("device"),
+                "source": frame.attrs.get("source"),
+                "query_start": frame.attrs.get("query_start"),
+                "query_stop": frame.attrs.get("query_stop"),
+                "column": column,
+                "unit": unit,
+                "observations": int(frame[column].notna().sum()),
+                "missing_bins": int(gaps.get(column, 0)),
+                "out_of_range": int(flags[column].sum()) if semantic_ready else None,
+                "physical_semantics": semantic_ready,
+            }
+        )
+    return pd.DataFrame(rows)
 
 
 def ingest_all(start: str = "-7d", out_dir: Path | None = None) -> dict[str, int]:

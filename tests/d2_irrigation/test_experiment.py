@@ -36,6 +36,18 @@ def test_results_table_shape_and_fair_n():
         assert (grp["n"] > 0).all()
 
 
+def test_undeclared_numeric_columns_do_not_change_learned_forecast():
+    frame = _daily_cycle_frame()
+    cfg = IrrigationConfig(model="ridge", horizons_h=[6], n_folds=3)
+    clean = run_experiment(frame, cfg)
+
+    poisoned = frame.copy()
+    poisoned["undeclared_future_weather"] = poisoned["soil_water"].shift(-6)
+    with_extra = run_experiment(poisoned, cfg)
+
+    pd.testing.assert_frame_equal(clean, with_extra)
+
+
 def test_seasonal_naive_beats_persistence_on_daily_cycle():
     """On strongly daily-periodic data, 'same hour yesterday' must win at 6-12h."""
     cfg = IrrigationConfig(model="naive", horizons_h=[6, 12], n_folds=3)

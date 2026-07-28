@@ -15,8 +15,6 @@ decision time.
 
 from __future__ import annotations
 
-import re
-
 import numpy as np
 import pandas as pd
 
@@ -24,7 +22,13 @@ from vine.common.logging import get_logger
 from vine.d1_pipeline.pipeline import add_lead_time_features
 from vine.d2_irrigation import baselines
 from vine.d2_irrigation.config import IrrigationConfig
-from vine.d2_irrigation.models import make_arima, make_forest, make_gbt, make_ridge
+from vine.d2_irrigation.models import (
+    make_arima,
+    make_forest,
+    make_gbt,
+    make_ridge,
+    make_water_balance,
+)
 from vine.d5_evaluation.metrics import mae, precision_recall, rmse
 from vine.d5_evaluation.walkforward import expanding_splits, skill, walk_forward
 
@@ -32,7 +36,6 @@ log = get_logger(__name__)
 
 # Matches the horizon out of a `{stem}_next_{h}h` lead-time column name (see
 # `vine.d1_pipeline.pipeline.add_lead_time_features`).
-_NEXT_H_RE = re.compile(r"_next_(\d+)h$")
 
 
 def run_experiment(frame: pd.DataFrame, cfg: IrrigationConfig) -> pd.DataFrame:
@@ -55,14 +58,27 @@ def run_experiment(frame: pd.DataFrame, cfg: IrrigationConfig) -> pd.DataFrame:
 
     rows = []
     for h in cfg.horizons_h:
+        # The YAML declaration is the feature contract. Sensor-derived columns
+        # may include engineered suffixes from a declared base feature; incidental
+        # numeric columns, including realized daily weather, are excluded.
+        feature_columns = [
+            column
+            for column in numeric.columns
+            if any(
+                column == feature or column.startswith(f"{feature}_") for feature in cfg.features
+            )
+        ]
+        if cfg.forecast_features:
+            feature_columns.extend(
+                column
+                for column in (f"et0_next_{h}h", f"precip_next_{h}h")
+                if column in numeric.columns and column not in feature_columns
+            )
+        if not feature_columns:
+            raise ValueError(f"horizon {h}h: no declared numeric features are available")
+
         # Features as known at decision time t-h, aligned to target time t.
-        X = numeric.shift(h)
-        # A `_next_{h_feat}h` column read at decision time t-h covers
-        # (t-h, t-h+h_feat]; that only equals the target window (t-h, t] when
-        # h_feat == h. Any other horizon reaches past (or short of) the target
-        # time t — a mismatched one is a genuine future leak, not a feature.
-        mismatched = [c for c in X.columns if (m := _NEXT_H_RE.search(c)) and int(m.group(1)) != h]
-        X = X.drop(columns=mismatched)
+        X = numeric[feature_columns].shift(h)
         preds: dict[str, pd.Series] = {
             "persistence": baselines.naive_persistence(y, h),
             "drydown": baselines.drydown_trend(y, h),
@@ -72,6 +88,7 @@ def run_experiment(frame: pd.DataFrame, cfg: IrrigationConfig) -> pd.DataFrame:
                 y,
                 lambda X_tr, y_tr, X_te: baselines.climatology_hourly(y_tr, X_te.index),
                 cfg.n_folds,
+                purge=h - 1,
             ),
         }
         regressors = {
@@ -84,15 +101,40 @@ def run_experiment(frame: pd.DataFrame, cfg: IrrigationConfig) -> pd.DataFrame:
             # is then exactly the zero-change prediction, so any learned skill
             # is real signal, not just re-deriving persistence with error.
             delta = y - y.shift(h)
-            delta_pred = walk_forward(X, delta, regressors[cfg.model](), cfg.n_folds)
+            delta_pred = walk_forward(X, delta, regressors[cfg.model](), cfg.n_folds, purge=h - 1)
             # reconstruct to level to score fairly
             preds[f"{cfg.model}_delta"] = y.shift(h) + delta_pred
         elif cfg.model in regressors:
-            preds[cfg.model] = walk_forward(X, y, regressors[cfg.model](), cfg.n_folds)
+            preds[cfg.model] = walk_forward(X, y, regressors[cfg.model](), cfg.n_folds, purge=h - 1)
         elif cfg.model == "arima":
             p, d, q = cfg.order
             preds["arima"] = walk_forward(
-                X, y, make_arima((p, d, q), horizon=h, target_col=cfg.target), cfg.n_folds
+                X,
+                y,
+                make_arima((p, d, q), horizon=h, target_col=cfg.target),
+                cfg.n_folds,
+                purge=h - 1,
+            )
+        elif cfg.model == "water_balance":
+            preds["water_balance"] = walk_forward(
+                X,
+                y,
+                make_water_balance(
+                    cfg.target,
+                    horizon=h,
+                    use_level=cfg.wb_use_level,
+                    gate_precip_mm=cfg.wb_gate_precip_mm,
+                    robust=cfg.wb_robust,
+                    saturate_k=cfg.wb_saturate_k,
+                    adaptive_blend=cfg.wb_adaptive_blend,
+                    val_frac=cfg.wb_val_frac,
+                    blend_weights=cfg.wb_blend_weights,
+                    min_fit_rows=cfg.wb_min_fit_rows,
+                    min_val_rows=cfg.wb_min_val_rows,
+                    huber_max_iter=cfg.wb_huber_max_iter,
+                ),
+                cfg.n_folds,
+                purge=h - 1,
             )
 
         # Score every model on the same rows: holdout region, all preds + truth present.

@@ -4,7 +4,12 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from vine.d5_evaluation.walkforward import expanding_splits, skill, walk_forward
+from vine.d5_evaluation.walkforward import (
+    expanding_splits,
+    purged_train_slice,
+    skill,
+    walk_forward,
+)
 
 
 def test_expanding_splits_tile_the_holdout_exactly():
@@ -53,3 +58,31 @@ def test_skill_sign_convention():
     assert skill(1.0, 2.0) == 0.5  # halved the baseline error -> positive
     assert skill(2.0, 1.0) == -1.0  # doubled it -> negative
     assert skill(1.0, 0.0) == 0.0  # degenerate baseline -> no skill claimable
+
+
+def test_purged_train_slice_has_exact_horizon_boundary():
+    train = slice(0, 30)
+
+    assert purged_train_slice(train, purge=0) == slice(0, 30)
+    assert purged_train_slice(train, purge=5) == slice(0, 25)
+    assert purged_train_slice(slice(4, 10), purge=99) == slice(4, 4)
+
+
+def test_walk_forward_uses_the_central_purged_boundary():
+    n = 60
+    X = pd.DataFrame({"x": np.arange(n, dtype=float)})
+    y = pd.Series(np.arange(n, dtype=float))
+    seen: list[tuple[list[int], int]] = []
+
+    def fit_predict(X_train, y_train, X_test):
+        seen.append((y_train.astype(int).tolist(), int(X_test.index[0])))
+        return np.zeros(len(X_test))
+
+    walk_forward(X, y, fit_predict, n_folds=3, purge=5)
+    splits = expanding_splits(n, 3)
+    assert seen == [(list(range(tr.start or 0, te.start - 5)), te.start) for tr, te in splits]
+
+
+def test_purged_train_slice_rejects_negative_purge():
+    with pytest.raises(ValueError, match="purge"):
+        purged_train_slice(slice(0, 40), purge=-1)

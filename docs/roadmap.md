@@ -19,12 +19,12 @@ testable artifact — no big-bang integration. Mirrors the proposal timeline.
 
 | Deliverable | Status |
 |-------------|--------|
-| D1 Data pipeline | ◐ scaffolded |
-| D2 Irrigation | ☐ |
-| D3 Plant-health CV | ☐ |
-| D4 Harvest timing | ☐ |
-| D5 Evaluation report | ☐ |
-| D6 NRP deployment | ☐ |
+| D1 Data pipeline | ☑ done + live-verified |
+| D2 Irrigation | ☑ persistence shipped; water balance active experiment |
+| D3 Plant-health CV | ◐ label-free screening MVP; labels pending |
+| D4 Harvest timing | ☐ blocked on historical records |
+| D5 Evaluation report | ◐ walk-forward harness used by D2 |
+| D6 NRP deployment | ◐ local API built; cluster deploy blocked on kubeconfig |
 | D7 Docs & devlog | ◐ ongoing |
 
 ## Future work (post-GSoC)

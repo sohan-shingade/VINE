@@ -2,8 +2,16 @@ apiVersion: v1
 kind: Service
 metadata:
   name: vine-irrigation
-  labels: { app: vine, track: irrigation }
+  labels:
+    app.kubernetes.io/name: vine-irrigation
+    app.kubernetes.io/part-of: vine
+    vine.nrp.ai/track: irrigation
 spec:
-  selector: { app: vine, track: irrigation }
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: vine-irrigation
   ports:
-    - { port: 80, targetPort: 8000 }
+    - name: http
+      port: 80
+      targetPort: http
+      protocol: TCP

@@ -39,6 +39,8 @@ nav:
       - Datasheet: data/index.md
   - Models:
       - Overview: models/index.md
+      - D2 persistence: models/irrigation/persistence.md
+      - D3 stress screening: models/plant-health/stress-screening.md
       - Template: models/_template.md
   - Decisions (ADRs):
       - Index: adr/index.md
@@ -52,6 +54,11 @@ nav:
       - 0007 NRP infrastructure: adr/0007-nrp-infrastructure.md
       - 0008 Sensor source (InfluxDB): adr/0008-sensor-source-influxdb.md
       - 0009 Weather data sources: adr/0009-weather-data-sources.md
-  - Devlog: devlog/index.md
+  - Devlog:
+      - Overview: devlog/index.md
+      - 2026-07-23 — D2, D3 & serving: devlog/2026-07-23-d2-d3-serving.md
+  - Reports:
+      - D3 offline screening (2026-07-23): reports/2026-07-23-d3-screening.md
+      - Reproducible interim evaluation (2026-07-23): reports/2026-07-23-interim-evaluation.md
   - Roadmap: roadmap.md
   - Glossary: glossary.md

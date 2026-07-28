@@ -1,0 +1,17 @@
+# Frozen scope for mentor issue #1. Persistence is the reference, not an eighth
+# challenger. Pooled and water-balance experiments happened later and are
+# discussed separately from this midterm seven-family reproduction.
+seed: 42
+device: SE01-LS-1
+alert_devices: [SE01-LS-2, SE01-LS-3, SE01-LS-4]
+horizons_h: [6, 12, 24, 48]
+irrigate_below: 25.0
+n_folds: 5
+challengers:
+  - {family: rule, model: drydown, config: configs/d2_irrigation/naive.yaml}
+  - {family: ridge, model: ridge, config: configs/d2_irrigation/ridge.yaml}
+  - {family: ridge_forecast, model: ridge, config: configs/d2_irrigation/ridge_fcst.yaml}
+  - {family: ridge_delta, model: ridge_delta, config: configs/d2_irrigation/ridge_delta.yaml}
+  - {family: arima, model: arima, config: configs/d2_irrigation/arima.yaml}
+  - {family: forest, model: forest_delta, config: configs/d2_irrigation/forest.yaml}
+  - {family: gbt, model: gbt_delta, config: configs/d2_irrigation/gbt.yaml}

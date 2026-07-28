@@ -19,6 +19,10 @@ import pandas as pd
 
 FitPredict = Callable[[pd.DataFrame, pd.Series, pd.DataFrame], "np.ndarray"]
 
+# Purging shortens the physical training frame, but sequence models may still
+# need the unpurged fold boundary to map test rows back to original positions.
+ORIGINAL_TRAIN_STOP_ATTR = "_vine_walk_forward_original_train_stop"
+
 
 def expanding_splits(
     n: int, n_folds: int = 5, min_train: int | None = None
@@ -41,22 +45,45 @@ def expanding_splits(
     return [(slice(0, a), slice(a, b)) for a, b in zip(bounds, bounds[1:], strict=False)]
 
 
+def purged_train_slice(train: slice, purge: int = 0) -> slice:
+    """Remove the newest labels from an expanding training slice.
+
+    For an ``h``-step target-time-aligned forecast, ``purge=h-1`` keeps the
+    newest label whose timestamp is known at the first test row's decision
+    time. The returned stop is clamped to the slice start.
+    """
+    if purge < 0:
+        raise ValueError("purge must be non-negative")
+    start = train.start or 0
+    if train.stop is None:
+        raise ValueError("training slice must have a finite stop")
+    return slice(train.start, max(start, train.stop - purge), train.step)
+
+
 def walk_forward(
     X: pd.DataFrame,
     y: pd.Series,
     fit_predict: FitPredict,
     n_folds: int = 5,
     min_train: int | None = None,
+    purge: int = 0,
 ) -> pd.Series:
     """Out-of-sample predictions for the holdout region, fold by fold.
 
     Returns a series aligned to `y.index`: NaN before the first test fold,
-    the fold-wise causal predictions after. `fit_predict` only ever sees
-    training rows strictly before the rows it predicts.
+    the fold-wise causal predictions after. `purge` removes the newest training
+    labels before each test fold. For an h-step target-time-aligned forecast use
+    `purge=h-1`: those labels occur after the first test row's decision time.
+    The physical training frames remain purged; `X_train.attrs` records the
+    original fold stop so sequence models can retain the unpurged coordinates.
     """
     preds = pd.Series(np.nan, index=y.index, dtype=float)
     for tr, te in expanding_splits(len(y), n_folds, min_train):
-        out = fit_predict(X.iloc[tr], y.iloc[tr], X.iloc[te])
+        purged = purged_train_slice(tr, purge)
+        X_train = X.iloc[purged].copy(deep=False)
+        y_train = y.iloc[purged].copy(deep=False)
+        X_train.attrs[ORIGINAL_TRAIN_STOP_ATTR] = tr.stop
+        out = fit_predict(X_train, y_train, X.iloc[te])
         preds.iloc[te] = np.asarray(out, dtype=float)
     return preds
 

@@ -1,7 +1,7 @@
 # 🍇 VINE — Vineyard Intelligence Network & Environment
 
 ![Python 3.11](https://img.shields.io/badge/python-3.11-3776AB?logo=python&logoColor=white)
-![Tests](https://img.shields.io/badge/tests-84%20passing-2ea44f)
+![Tests](https://img.shields.io/badge/tests-161%20passing-2ea44f)
 ![License: MIT](https://img.shields.io/badge/license-MIT-blue)
 ![GSoC 2026](https://img.shields.io/badge/GSoC-2026-fbbc05?logo=google&logoColor=white)
 
@@ -14,7 +14,7 @@ when to harvest.** This repo is **Track 2 (AI/ML Models)** of the VINE project.
 | Track | Deliverable | Predicts | Status |
 |-------|-------------|----------|--------|
 | 💧 Irrigation | D2 | Soil moisture (6/12/24/48 h) → irrigation alert | **shipped** (see below) |
-| 🌿 Plant health (CV) | D3 | Per-block stress / pest from multispectral imagery | starting |
+| 🌿 Plant health (CV) | D3 | Label-free NDVI/NDRE block screening | MVP built; labels pending |
 | 🍇 Harvest timing | D4 | Per-block harvest-readiness score | gated on records |
 
 All three share one data pipeline (**D1**), one evaluation framework (**D5**),
@@ -24,9 +24,9 @@ and deploy as FastAPI services on NRP Kubernetes (**D6**).
 
 The data pipeline (D1) is **done and live-verified** — 1.04 M sensor rows,
 weather + ET₀, and drone imagery aligned to all 39 vineyard blocks. The
-irrigation track (D2) is **decided**: seven forecaster families (ridge ×3,
-ARIMA, random forest, gradient boosting, rule baselines) were benchmarked
-walk-forward on four soil probes, and **none robustly beats the naive
+irrigation track (D2) is **decided**: nine challenger families, including pooled
+cross-sensor and active water-balance experiments, were evaluated across five
+soil probes, and **none robustly beats the naive
 persistence forecast** — soil moisture is too autocorrelated at 6–48 h
 horizons. Two apparent wins were traced to evaluation bugs (a Kalman-filter
 causality leak and a single-fold aggregation artifact) and are now guarded by
@@ -65,7 +65,7 @@ configs/        YAML experiment configs (source of truth for runs)
 docker/ k8s/    D6  container images + Nautilus manifests
 docs/           D7  the wiki (architecture, data, model cards, ADRs, devlog)
 scripts/        report/figure generation (matplotlib, from DVC-pinned data)
-tests/          pytest suite (84 tests, incl. forecast-causality guards)
+tests/          pytest suite (161 tests, incl. forecast-causality guards)
 ```
 
 ## Documentation

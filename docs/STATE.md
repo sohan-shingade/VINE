@@ -3,10 +3,41 @@
 > **Single source of truth for "where are we."** Git-tracked so it survives any
 > session, machine, or context reset. **Any new session: read this first.**
 > Update it at the end of any session that changes status. Last updated:
-> **2026-07-08 (night)**. Phase: **D2 ship decision made: persistence is the
-> champion (ARIMA candidate refuted on other sensors); S3/DVC restored**.
+> **2026-07-23**. Phase: **D3 label-free screening MVP + local D6 irrigation
+> serving built; water balance remains an active D2 experiment**.
 
 ## TL;DR — resume here
+
+**D1 complete; D2 serves persistence while water balance stays active; D3/D6
+MVPs are now built (2026-07-23).** The pooled five-sensor rung was corrected to
+apply the same `h−1` training-label purge as the single-probe evaluator and
+rerun from YAML: fleet skill is −45.1/−52.2/+33.0/+30.2% at 6/12/24/48 h, but
+worst-fold skill remains negative at every horizon, so it still does not ship.
+A constrained water-balance weather
+correction produced +3.5…+11.2% aggregate skill at 48 h across all five probes
+after an adversarial review found and fixed a shared fold-boundary label leak.
+Every probe still has a negative worst fold and the backtest uses realized future
+weather, so water balance is **promising active research, not rejected/removed,
+but not production-promoted**. Persistence remains the safe served fallback.
+
+D3 now has a label-free, same-acquisition NDVI/NDRE block-screening pipeline
+(windowed distributions, polygon-interior coverage flags, deterministic concern
+ranks). An adversarial review invalidated the first run's 30/9 coverage split
+because its denominator used each polygon's bounding box. The corrected remote
+39-block rerun later exited without producing a replacement artifact, so no
+current block ranking is claimed yet. D6 locally
+serves persistence + threshold with typed quality/freshness responses; a real
+stale snapshot correctly suppresses advice. A bounded EM500-PP-4842 pull now
+preserves 22,256 raw pressure observations (2026-01-22 through 2026-07-23) plus
+provenance/quality manifests; its unit, active direction, served block, and
+ground-truth meaning remain unverified, so it is not used as an irrigation-event
+label and does not unblock D4. Current local gate: **161 tests passed**;
+Ruff, formatting, mypy, strict MkDocs, codemap regeneration, deterministic report
+regeneration, and both output-free notebook executions are clean. Remaining
+human blockers: D3 labels, archived forecast
+vintages, kubeconfig, harvest records, pressure semantics, and token rotation.
+
+### Previous D2 handoff
 
 **All lost secrets restored; D2 rungs 2–3 built and honestly evaluated**
 (2026-07-08 evening, orchestrated multi-agent session): S3 keys re-issued →
@@ -36,7 +67,7 @@ reads them as the value (bit us via `.env.example`'s NDP line; now fixed).
 
 | Resource | Endpoint | Access | Verified |
 |----------|----------|--------|----------|
-| Sensors (InfluxDB) | `https://nrp-thingsboard-influxdb.nrp-nautilus.io` org `Iron Horse Vineyards`, bucket `ihv` | Flux + `VINE_INFLUX_TOKEN` | ✅ **token restored + re-verified 2026-07-08** (1.04 M rows re-ingested) |
+| Sensors (InfluxDB) | `https://nrp-thingsboard-influxdb.nrp-nautilus.io` org `Iron Horse Vineyards`, bucket `ihv` | Flux + `VINE_INFLUX_TOKEN` | ✅ **token restored + re-verified 2026-07-23**; bounded EM500-PP profile added locally (22,256 raw observations; semantics unverified) |
 | NRP S3 (Pool West) | `https://s3-west.nrp-nautilus.io`, bucket `ihv-vine` | `AWS_ACCESS_KEY_ID/SECRET` in `.env` | ✅ **keys re-issued + verified 2026-07-08** (list on `ihv-vine` HTTP 200) |
 | DVC remote | `s3://ihv-vine/dvc` on NRP S3 | `.dvc/config` + creds in `.dvc/config.local` (gitignored) | ✅ **restored 2026-07-08**: creds rewritten, fresh snapshots pinned (`sensors` 1.04 M rows, `weather`, `imagery` 61 MB) and pushed (19 objects) |
 | NDP catalog API | `https://nationaldataplatform.org/catalog/api/3/action/` | public, no auth | ✅ found the 2 IHV datasets |
@@ -55,7 +86,7 @@ imagery: `Cd, H5, H4, E, H2, Q, Ce`.
 |---|-------|--------------------|---------------|--------|
 | 1 | Sensors | InfluxDB bucket `ihv` | `vine.d1_pipeline.InfluxReader` (Flux) | ✅ working |
 | 2 | Drone imagery | NextCloud share (WebDAV) — **not** STAC hrefs (stale) | `vine.d1_pipeline.imagery` (flight index → captures → band download) + `geo` (KMZ blocks, zonal stats) | ✅ **BUILT + LIVE-VERIFIED 2026-07-06** — orthomosaics & block polygons were on the share all along (`GIS/`) |
-| 3 | Historical harvest/yield/irrigation | **NOT in InfluxDB or NDP** — vineyard/mentor | TBD | ⏸️ **skipped for now** (only D4 needs it; ask mentor) |
+| 3 | Historical harvest/yield/irrigation | **Not found in the checked local/DVC snapshots, live InfluxDB, NDP catalog, or current NextCloud share as of 2026-07-23** | Vineyard/mentor handoff still required | ⏸️ **D4 blocked**; no harvest dates, yield, Brix/pH/TA, or irrigation logs available |
 | 4 | Weather (hist) | Open-Meteo archive (ERA5) | `vine.d1_pipeline.fetch_historical` | ✅ **reader built + tested + verified live** |
 | 4f | Weather (forecast) | Open-Meteo forecast API | `vine.d1_pipeline.fetch_forecast` | ✅ **built + live-verified 2026-07-08** (3-day forecast, same tidy daily frame). Backtests use the labeled perfect-forecast proxy (`add_lead_time_features`); live serving would fill the same `_next_{h}h` columns from this reader |
 
@@ -74,12 +105,12 @@ winter/dormant; the useful growing-season flights are Aug (pre-harvest) + Oct
 |---|-------------|--------|-------|
 | — | Repo + Claude Code scaffold + wiki | ☑ | builds green: ruff/mypy/17 tests |
 | D1 | Data pipeline | ☑ | **all three reachable inputs done + live-verified**: sensor path (ingest→flags→features→weather/GDD), weather reader, **imagery path** (WebDAV flight index → capture grouping → band download → NDVI) + **block alignment** (39 KMZ polygons, sensor→block join, windowed zonal stats). Historical (input #3) remains a mentor Q — D4-only. Weather *forecast* (4f) optional, for D2 lead time |
-| D2 | Irrigation models | ☑ (core) | **Ship decision made 2026-07-08 (ADR-0003): persistence is the champion.** Full ladder evaluated walk-forward on 4 sensors × 5.5 months: ridge ✗ (−0.8…−1.0), ridge+forecast ✗ (48 h +15 % = single-rain-fold artifact), ridge-Δ ✗, ARIMA ✗ (won +2–3 % on LS-1/LS-4 but −6…−18 % on LS-2, mixed on LS-3 — not robust). Decision layer: on LS-2/3/4 (holdouts that cross the 25.0 threshold) persistence alert P/R = 0.95–0.99. Remaining (non-gating): expose persistence+threshold via D6; Prophet/LSTM descoped on evidence (confirm w/ mentor); short-horizon weather-ffill caveat if rungs are ever revisited (daily `precip_mm`/`et0_mm` reach past target at h<24 — use `_next_` columns) |
-| D3 | Plant-health CV | ☐ | |
+| D2 | Irrigation models | ☑ (core) | **Persistence remains the served champion.** Nine challenger families evaluated across five probes; oracle-assisted pooled GBT has positive 24/48 h fleet micro-average skill but negative fleet worst folds. Water balance is an **active experiment**: oracle-weather 48 h skill +3.5…+11.2% across probes after purged evaluation, but negative worst folds prevent promotion. D6 now serves persistence+threshold locally. |
+| D3 | Plant-health CV | ◐ | Label-free NDVI/NDRE screening code is built/tested; polygon-interior coverage and accepted-only ranking fixes passed regression tests. The corrected remote 39-block rerun exited without a replacement artifact, so real rankings remain pending. Supervised classification still needs mentor-provided labels. |
 | D4 | Harvest timing | ☐ | depends on input #3; descopable to exploratory |
-| D5 | Evaluation report | ◐ | shared harness: metrics + **walk-forward validation (expanding splits, causal eval, skill score)** + **per-fold skill columns** (`skill_fold_median/min` — added after the eval review showed a pooled MAE hiding a single-fold artifact) — used by D2, reusable by D4 |
-| D6 | NRP deployment | ☐ | needs kubectl/kubeconfig |
-| D7 | Docs + devlog | ◐ | wiki live; devlog started |
+| D5 | Evaluation report | ◐ | Shared metrics + expanding walk-forward, per-fold skill, and horizon-aware `h−1` training-label purge after adversarial review. Used by D2; reusable by D4. |
+| D6 | NRP deployment | ◐ | Local typed persistence API built/tested; actual NRP deployment still needs kubectl/kubeconfig. |
+| D7 | Docs + devlog | ◐ | Model cards, roadmap, and 2026-07-23 devlog updated. |
 
 ## Done log
 
@@ -232,8 +263,10 @@ winter/dormant; the useful growing-season flights are Aug (pre-harvest) + Oct
   four sensors does not ship → **persistence is the D2 forecaster (ADR-0003).**
   New signal: LS-2/3/4 holdouts *do* cross the 25.0 irrigation threshold, and
   persistence's alert precision/recall there is 0.95–0.99 — the decision layer
-  is genuinely strong. All runs in MLflow (`d2_irrigation`). (SE0X-LS-1 has no
-  `soil_water` column — excluded.)
+  is genuinely strong. All runs in MLflow (`d2_irrigation`). (SE0X-LS-1 was
+  excluded here for a lack of `soil_water` — **later shown wrong**: its soil
+  channels are just under raw LoRa names; folded into the pooled rung below as a
+  5th sensor.)
 
 - **2026-07-08 (late night)** — **Trees + rule rung evaluated; conclusion
   unchanged.** Added on request: `drydown_trend` rule baseline (persistence +
@@ -249,6 +282,46 @@ winter/dormant; the useful growing-season flights are Aug (pre-harvest) + Oct
   high-variance memorization of fold-specific rain episodes, under a perfect
   forecast no less → **do not ship; persistence unchallenged** across 7 model
   families. 84 tests green; runs in MLflow.
+
+- **2026-07-09** — **Pooled cross-sensor rung built + evaluated; persistence
+  still champion (8th family rejected).** Motivated by the session's litscan
+  (M4/M5 + Elsayed 2021: ML beats naive baselines via *cross-learning across
+  related series*, not more history) — the one untried lever, and IHV has 5
+  near-identical soil probes sharing weather. Built `d2_irrigation/pooled.py`
+  (align all sensors to one hourly grid → time-aligned expanding folds → fit ONE
+  Δ-target model on stacked rows → score each sensor vs its OWN persistence,
+  plus an `ALL` fleet row) + `scripts/d2_pooled.py` runner + 3 tests (align,
+  runs/zero-self-skill, strict-causal split). **Recovered SE0X-LS-1 as a 5th
+  sensor** — it *does* have soil channels, under raw LoRa names
+  (`device_frmpayload_data_water_SOIL1` etc.; reads dry, mean 18.6, 96.5% below
+  the 25.0 threshold) — the earlier "no soil_water column" note was wrong.
+  Result (5 sensors × 4 horizons, walk-forward): this original pooled run was
+  later superseded by the corrected `h−1`-purged evidence recorded below. It
+  motivated the corrected rerun but is not current promotion evidence. Data audit also found: all 9 devices share
+  3 identical InfluxDB-level data gaps (Feb 16–17, May 8–19, **Jun 24–Jul 8**);
+  verified against source — not an ingest bug; simultaneous across devices →
+  likely a shared gateway/ingestion outage, not sensor failure (mentor Q).
+
+- **2026-07-23** — **Pooled D2 corrected; water balance active; D3/D6 MVPs built.**
+  Moved pooled runs to YAML, restricted them to declared predictors, added fleet
+  fold evidence, then corrected the pooled evaluator to purge the final `h−1`
+  training labels. The corrected five-probe fleet skill is
+  −45.1/−52.2/+33.0/+30.2% at 6/12/24/48 h, with negative worst-fold skill at
+  every horizon. These are realized-future-weather-assisted upper bounds and the
+  `ALL` row is a micro-average of correlated sensor-hours, not independent fleet
+  replication. Pooled ridge loses fleet-wide at every horizon. Completed the constrained
+  water-balance weather correction; adversarial review found a shared fold-boundary
+  label leak, fixed via `h−1` training-label purge. Corrected oracle-weather 48 h
+  skill is +3.5…+11.2% across five probes, with negative worst folds; **water
+  balance remains an active candidate, persistence remains served.** Built D3
+  label-free NDVI/NDRE block screening (windowed distributions, coverage and
+  disagreement flags, deterministic ranks); real 4 GB rasters verified HTTP 206
+  + GDAL-open. A later adversarial review superseded the first 39-block result:
+  polygon-interior coverage and accepted-only percentile fixes now pass tests.
+  The corrected remote rerun exited without writing a replacement artifact, so
+  no corrected real-data rank is claimed. Built local D6 persistence+threshold API;
+  real stale snapshot correctly suppresses recommendation. Model cards + devlog
+  updated; final repository-wide gate is recorded at the end of this session.
 
 ## Open questions for mentor
 
@@ -273,29 +346,32 @@ winter/dormant; the useful growing-season flights are Aug (pre-harvest) + Oct
 
 ## Next actions (when resuming)
 
-1. **📧 Mentor message: DRAFTED 2026-07-09** (Gmail draft, reply-all on the
-   "VINE data questions" thread w/ Firas + John Graham) bundling all four asks
-   (kubeconfig, token rotation, harvest records, imagery plans) + midterm
-   status + links. **Send after pushing main to GitHub** (links reference the
-   public repo). Midterm report: `docs/reports/2026-07-midterm.html` (+ gist
-   preview, figures via `scripts/midterm_*.py`); repo made **public** on
-   GitHub w/ description+topics; GSoC midterm eval window closes **Jul 10,
-   18:00 UTC** — both parties must submit on the dashboard.
-2. **D3 — start the CV track** (next major build): per-block patches from the
-   2025-08-29 H-blocks + 2026-06-01 whole-vineyard orthomosaic sets (NDVI/NDRE
-   layers pre-computed). Needs mentor Q3 (labels) answered to go supervised;
-   unsupervised per-block stress ranking (NDVI distribution shifts) can start
-   without labels.
-3. **D6 groundwork once kubeconfig lands:** serve the shipped D2 answer —
-   `/irrigation` = latest reading + persistence forecast + threshold alert
-   (P/R 0.95–0.99 on sensors that cross it).
-4. ⏸️ Historical harvest (input #3) still a mentor Q (gates D4 only).
-5. Optional: `/llmtoken/` for the managed LLM (no core track needs it).
+1. **Finish corrected D3 rerun:** the polygon-interior coverage and accepted-only
+   percentile fixes pass regression tests. Finish the in-progress 39-block screen
+   and regenerate D3 reports before treating the superseded 30/9 coverage split
+   or H6/L rank as current evidence.
+2. **Make the new snapshots reproducible:** the local sensor/imagery DVC pointers
+   now include the EM500-PP profile and imagery inventory, but their objects have
+   not been pushed. Push only after explicit approval, then verify `dvc status -c`
+   is clean so notebook CI can pull them.
+3. **Validate active D2 research honestly:** keep water balance active and test it
+   on archived forecast vintages or a genuinely new temporal holdout. Persistence
+   remains the served model until worst-fold robustness clears the gate.
+4. **D3/D4 human inputs:** obtain field-reviewed plant-health labels and historical
+   harvest/yield/Brix/irrigation records; D4 remains blocked until then.
+5. **D6 cluster deployment:** kubeconfig, namespace/PVC confirmation, immutable
+   image publication, and a fresh sensor snapshot are still required. The local
+   non-root image and stale-data suppression path are verified.
+6. **Security:** rotate the publicly exposed InfluxDB token. The optional managed
+   LLM token is not required for any core track.
 
-**Done since last:** S3/DVC restored + snapshots pinned; forecast reader (4f),
-ARIMA, Δ-target, lead-time features built; eval review caught an ARIMA
-causality leak + a single-fold ridge artifact; multi-device confirmation
-refuted ARIMA → **D2 ship decision: persistence champion**; devlog posted.
+**Done in this worktree:** pooled and water-balance evaluators were purged at
+fold boundaries; ARIMA preserves original fold coordinates under that purge;
+mentor-requested D1/D2 notebooks execute offline; EM500-PP raw pressure was
+preserved without guessed semantics; local D6 packaging was hardened and rejects
+non-finite readings; D3/D5 reports and current-state docs were drafted. The
+remaining local work is the in-progress corrected D3 raster rerun; snapshot DVC
+objects still require an explicitly approved push.
 
 ## How we keep state across sessions
 

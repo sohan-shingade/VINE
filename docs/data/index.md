@@ -30,14 +30,22 @@ STAC ✅ (9,295 DJI M3M captures, 11 flights Aug 2025–Jan 2026, RGB + green/re
 rededge/nir); weather → **Open-Meteo archive** ✅ (ET₀ included) /
 [gridMET](https://www.drought.gov/data-maps-tools/gridded-surface-meteorological-gridmet-dataset),
 forecast via Open-Meteo/python-awips ([ADR-0009](../adr/0009-weather-data-sources.md)).
-**Historical harvest/yield/irrigation records are NOT in InfluxDB or NDP** — must
-come from the vineyard/mentor; only D4 (harvest) needs them.
+**Fresh record search (2026-07-23):** no harvest dates, yield, Brix, pH/TA,
+or irrigation logs were found in the checked local/DVC snapshots, live InfluxDB,
+NDP catalog, or current NextCloud share. These records still require a
+vineyard/mentor handoff; D4 remains not evaluated.
 
 **Sensor devices (IHV deployment):** `SE01-LS-1..4` (soil: conductivity,
 temperature, water), `SE0X-LS-1` (multi-depth soil, SOIL1..4),
-`EM500-CO2-915M-1..4` (CO₂, humidity, temperature, pressure),
-`SenseCAP-S2103-CO2-1..2` (CO₂). Pulled with `vine.d1_pipeline.InfluxReader`
-(see [ADR-0008](../adr/0008-sensor-source-influxdb.md)).
+`EM500-CO2-915M-1..4` (CO₂, humidity, temperature, atmospheric pressure),
+`EM500-PP-4842` (raw pressure proxy), and `SenseCAP-S2103-CO2-1..2` (CO₂).
+Pulled with `vine.d1_pipeline.InfluxReader` (see
+[ADR-0008](../adr/0008-sensor-source-influxdb.md)). A bounded 2026-07-23 pull
+preserved 22,256 EM500-PP observations spanning 2026-01-22 through 2026-07-23.
+The deployment KMZ contains its point at approximately 38.45562, −122.89878,
+but its engineering unit, active direction, served block, and event semantics
+remain unverified. It is not used as irrigation ground truth and does not unblock
+D4.
 
 Derived: NDVI, NDRE (computed in `vine.d1_pipeline.indices`); rolling stats, lags,
 cumulative GDD (`vine.d1_pipeline.features`).
@@ -55,6 +63,14 @@ cumulative GDD (`vine.d1_pipeline.features`).
 - **Imagery cadence** depends on weather and flight scheduling.
 - **Harvest labels are sparse** (≈1 per block per year) — multi-year history is
   essential; D4 may be scoped to exploratory analysis if insufficient.
+
+## Reproducible profile
+
+The mentor-requested offline D1 profile is available at
+`notebooks/02_pipeline_datasheet.ipynb` in the repository. After `dvc pull`, it
+profiles sensor gaps and cadence, weather/ET₀ coverage, all 39 block polygons
+with deployed points, and the metadata-only imagery inventory without network
+access.
 
 ## Storage & access
 - Stored on NRP Ceph-backed volumes; **not committed to git** — versioned with

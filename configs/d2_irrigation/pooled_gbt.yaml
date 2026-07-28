@@ -1,0 +1,12 @@
+# Global cross-sensor GBT rung. One model learns moisture change across all five
+# probes, then each probe is scored against its own persistence forecast.
+model: gbt
+target: soil_water
+features: [soil_water, soil_temperature, soil_conductivity]
+horizons_h: [6, 12, 24, 48]
+n_folds: 5
+predict_delta: true
+forecast_features: true
+gbt_learning_rate: 0.06
+gbt_max_iter: 300
+irrigate_below: 25.0

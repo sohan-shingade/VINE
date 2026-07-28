@@ -94,7 +94,9 @@ def describe_module(path: Path) -> list[str]:
     for node in tree.body:
         if isinstance(node, ast.ClassDef):
             bases = f"({', '.join(ast.unparse(b) for b in node.bases)})" if node.bases else ""
-            lines.append(f"- **class {node.name}{bases}** — {first_doc_line(node)}")
+            description = first_doc_line(node)
+            suffix = f" — {description}" if description else ""
+            lines.append(f"- **class {node.name}{bases}**{suffix}")
             for item in node.body:
                 if isinstance(item, (ast.FunctionDef, ast.AsyncFunctionDef)):
                     lines.append(f"    - `{signature(item)}` — {first_doc_line(item)}".rstrip(" —"))

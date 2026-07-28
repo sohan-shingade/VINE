@@ -1,0 +1,18 @@
+# Label-free vegetation-index screening for one comparable acquisition.
+# Paths may be local GeoTIFFs or range-capable /vsicurl URLs; never download the
+# full multi-GB mosaics through this runner.
+acquisition: "2026-06-01"
+blocks_path: data/raw/imagery/IHV-2026-05-26.kmz
+ndvi_raster: /vsicurl/https://nextcloud.nrp-nautilus.io/public.php/webdav/GIS/IHV-2026-06-01/NDVI.data.tif
+ndre_raster: /vsicurl/https://nextcloud.nrp-nautilus.io/public.php/webdav/GIS/IHV-2026-06-01/NDRE.data.tif
+output_path: data/processed/d3_stress_ranking_2026-06-01.csv
+quantiles: [0.1, 0.25, 0.5, 0.75]
+ndvi_low_threshold: 0.4
+ndre_low_threshold: 0.2
+min_valid_pixels: 100
+min_coverage: 0.5
+ndvi_weight: 0.5
+ndre_weight: 0.5
+disagreement_threshold: 10
+seed: 42
+mlflow_experiment: d3_stress_screening

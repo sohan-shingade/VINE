@@ -37,6 +37,7 @@ DEVICES: dict[str, str] = {
     "EM500-CO2-915M-2": "air",
     "EM500-CO2-915M-3": "air",
     "EM500-CO2-915M-4": "air",
+    "EM500-PP-4842": "pipe_pressure",  # raw pressure; engineering unit not yet verified
     "SenseCAP-S2103-CO2-1": "air",
     "SenseCAP-S2103-CO2-2": "air",
 }
@@ -57,8 +58,26 @@ MEASUREMENTS: dict[str, str] = {
 _DROP_COLS = ("result", "table", "_start", "_stop")
 # ThingsBoard metadata columns (dropped when tidy=True). device_name kept.
 _META_COLS = ("_field", "application_name", "dev_eui", "f_port")
+# Raw measurements can mean different things on different device families.
+_RAW_PRESSURE = "device_frmpayload_data_pressure"
+_DEVICE_ALIASES: dict[str, dict[str, str]] = {
+    "EM500-PP-4842": {_RAW_PRESSURE: "pipe_pressure_raw"},
+}
+
 # Reverse of MEASUREMENTS so output columns read like `soil_temperature`.
 _RAW_TO_FRIENDLY = {v: k for k, v in MEASUREMENTS.items()}
+
+
+def measurement_aliases(device_name: str) -> dict[str, str]:
+    """Return raw-to-friendly aliases in the context of one device.
+
+    The EM500 pressure measurement is barometric pressure on CO2 devices but
+    process/pipe pressure on EM500-PP-4842. Its engineering unit is currently
+    unknown, so the PP value deliberately retains a ``_raw`` suffix.
+    """
+    aliases = dict(_RAW_TO_FRIENDLY)
+    aliases.update(_DEVICE_ALIASES.get(device_name, {}))
+    return aliases
 
 
 def build_flux(
@@ -66,15 +85,18 @@ def build_flux(
     measurements: list[str],
     bucket: str,
     start: str = "-1w",
+    stop: str | None = None,
 ) -> str:
     """Build a Flux query for one device's measurements, pivoted by time.
 
-    `measurements` are raw `_measurement` names (see MEASUREMENTS for aliases).
+    ``measurements`` are raw ``_measurement`` names (see ``MEASUREMENTS`` for aliases).
+    ``stop`` provides an optional upper bound for reproducible profiling pulls.
     """
     meas_filter = " or ".join(f'r["_measurement"] == "{m}"' for m in measurements)
+    range_args = f"start: {start}" if stop is None else f"start: {start}, stop: {stop}"
     return f"""
 from(bucket: "{bucket}")
-  |> range(start: {start})
+  |> range({range_args})
   |> filter(fn: (r) => r["device_name"] == "{device_name}")
   |> filter(fn: (r) => {meas_filter})
   |> pivot(rowKey:["_time"], columnKey: ["_measurement"], valueColumn: "_value")
@@ -112,15 +134,19 @@ class InfluxReader:
         measurements: list[str],
         start: str = "-1w",
         tidy: bool = True,
+        *,
+        stop: str | None = None,
     ) -> pd.DataFrame:
         """Fetch one device's measurements into a time-indexed DataFrame.
 
-        `measurements` accept friendly aliases (see MEASUREMENTS) or raw names.
-        With `tidy=True`, drop InfluxDB/ThingsBoard metadata columns and rename
-        raw `device_frmpayload_data_*` columns back to friendly names.
+        ``measurements`` accept friendly aliases (see ``MEASUREMENTS``) or raw names.
+        With ``tidy=True``, drop InfluxDB/ThingsBoard metadata columns and rename
+        raw columns with device-aware aliases. In particular, the shared pressure
+        measurement becomes ``pressure`` for CO2 devices and ``pipe_pressure_raw``
+        for EM500-PP-4842.
         """
         raw = [MEASUREMENTS.get(m, m) for m in measurements]
-        query = build_flux(device_name, raw, self.bucket, start)
+        query = build_flux(device_name, raw, self.bucket, start, stop)
         client = self._client()
         try:
             df = client.query_api().query_data_frame(org=self.org, query=query)
@@ -134,7 +160,7 @@ class InfluxReader:
             df = df.set_index("_time")
         if tidy:
             df = df.drop(columns=[c for c in _META_COLS if c in df])
-            df = df.rename(columns=_RAW_TO_FRIENDLY)
+            df = df.rename(columns=measurement_aliases(device_name))
         # The Flux pivot can return numeric measurements as strings; coerce so
         # snapshots are numeric. Non-numeric stays NaN (a gap), never silent text.
         for col in df.columns:

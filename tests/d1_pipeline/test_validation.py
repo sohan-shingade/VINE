@@ -12,6 +12,24 @@ def test_flag_out_of_range():
     assert not flags["temperature"].any()
 
 
+def test_unknown_unit_blocks_physical_range_semantics():
+    frame = pd.DataFrame({"pipe_pressure_raw": [-1_000_000.0], "pressure": [2_000.0]})
+    flags = validation.flag_out_of_range(
+        frame,
+        units={"pipe_pressure_raw": None, "pressure": "unknown"},
+    )
+
+    assert not flags.any().any()
+    assert validation.physical_range("pipe_pressure_raw", None) is None
+    assert validation.physical_range("pressure", "unknown") is None
+
+
+def test_known_pressure_unit_enables_barometric_range():
+    frame = pd.DataFrame({"pressure": [1013.0, 2_000.0]})
+    flags = validation.flag_out_of_range(frame, units={"pressure": "hPa"})
+    assert list(flags["pressure"]) == [False, True]
+
+
 def test_flag_gaps_marks_missing():
     df = pd.DataFrame({"x": [1.0, None, 3.0]})
     assert list(validation.flag_gaps(df)["x"]) == [False, True, False]

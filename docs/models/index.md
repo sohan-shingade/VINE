@@ -9,7 +9,9 @@ command, starting from [`_template.md`](_template.md).
 
 | Model | Track | Status | Card |
 |-------|-------|--------|------|
-| _none yet_ | — | — | — |
+| Persistence + threshold | D2 irrigation | Shipped champion | [Card](irrigation/persistence.md) |
+| Water-balance correction | D2 irrigation | Active experiment; not promoted | [Persistence card evidence](irrigation/persistence.md#evaluation) |
+| NDVI/NDRE stress screening | D3 plant health | Engineering MVP; corrected live rerun pending | [Card](plant-health/stress-screening.md) |
 
 Cards will be added here as models are trained, e.g.:
 

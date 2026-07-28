@@ -2,32 +2,82 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: vine-irrigation
-  labels: { app: vine, track: irrigation }
+  labels:
+    app.kubernetes.io/name: vine-irrigation
+    app.kubernetes.io/part-of: vine
+    app.kubernetes.io/component: api
+    vine.nrp.ai/track: irrigation
 spec:
   replicas: 1
   selector:
-    matchLabels: { app: vine, track: irrigation }
+    matchLabels:
+      app.kubernetes.io/name: vine-irrigation
   template:
     metadata:
-      labels: { app: vine, track: irrigation }
+      labels:
+        app.kubernetes.io/name: vine-irrigation
+        app.kubernetes.io/part-of: vine
+        app.kubernetes.io/component: api
+        vine.nrp.ai/track: irrigation
     spec:
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        fsGroup: 10001
+        seccompProfile:
+          type: RuntimeDefault
       containers:
         - name: api
-          image: gitlab-registry.nrp-nautilus.io/<group>/vine/irrigation:latest
-          ports: [{ containerPort: 8000 }]
+          # Replace IMAGE_TAG before apply; use the immutable commit SHA produced by CI.
+          image: gitlab-registry.nrp-nautilus.io/ihv/vine/irrigation:IMAGE_TAG
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8000
+              protocol: TCP
           envFrom:
-            - configMapRef: { name: vine-config }
+            - configMapRef:
+                name: vine-config
           resources:
-            requests: { cpu: "500m", memory: "1Gi" }
-            limits: { cpu: "2", memory: "2Gi" }
+            requests:
+              cpu: 250m
+              memory: 512Mi
+            limits:
+              cpu: "1"
+              memory: 1Gi
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+            readOnlyRootFilesystem: true
           readinessProbe:
-            httpGet: { path: /healthz, port: 8000 }
+            httpGet:
+              path: /healthz
+              port: http
             initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 2
+            failureThreshold: 3
           livenessProbe:
-            httpGet: { path: /healthz, port: 8000 }
+            httpGet:
+              path: /healthz
+              port: http
             initialDelaySeconds: 10
+            periodSeconds: 20
+            timeoutSeconds: 2
+            failureThreshold: 3
           volumeMounts:
-            - { name: models, mountPath: /app/models, readOnly: true }
+            - name: data
+              mountPath: /app/data
+              readOnly: true
+            - name: runtime-tmp
+              mountPath: /tmp
       volumes:
-        - name: models
-          persistentVolumeClaim: { claimName: vine-models }
+        - name: data
+          persistentVolumeClaim:
+            claimName: vine-data
+            readOnly: true
+        - name: runtime-tmp
+          emptyDir: {}

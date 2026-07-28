@@ -136,6 +136,68 @@ def zonal_stats(raster_path: str | Path, blocks: gpd.GeoDataFrame, band: int = 1
     return pd.DataFrame(rows).set_index("block_id")
 
 
+def zonal_distribution(
+    raster_path: str | Path,
+    blocks: gpd.GeoDataFrame,
+    *,
+    band: int = 1,
+    quantiles: tuple[float, ...] = (0.1, 0.25, 0.5, 0.75),
+    low_threshold: float | None = None,
+) -> pd.DataFrame:
+    """Windowed per-block distribution summaries for one raster band.
+
+    The raster is opened once and each polygon is read with ``crop=True``; giant
+    orthomosaics and range-backed URLs are never loaded whole. ``coverage`` is
+    the fraction of polygon-interior pixels that are valid after nodata handling.
+    """
+    import numpy as np
+    import rasterio
+    import rasterio.features
+    import rasterio.mask
+
+    if any(q < 0.0 or q > 1.0 for q in quantiles):
+        raise ValueError("quantiles must be between 0 and 1")
+    rows = []
+    with rasterio.open(raster_path) as src:
+        aligned = blocks.to_crs(src.crs)
+        for block_id, geom in zip(aligned["block_id"], aligned.geometry, strict=True):
+            try:
+                data, transform = rasterio.mask.mask(
+                    src, [geom], crop=True, indexes=band, filled=False
+                )
+                interior = rasterio.features.geometry_mask(
+                    [geom],
+                    out_shape=data.shape,
+                    transform=transform,
+                    invert=True,
+                )
+            except ValueError:
+                data = np.ma.array([], mask=[])
+                interior = np.array([], dtype=bool)
+            valid = data.compressed()
+            total = int(interior.sum())
+            row: dict[str, object] = {
+                "block_id": block_id,
+                "count": int(valid.size),
+                "coverage": float(valid.size / total) if total else 0.0,
+                "mean": float(valid.mean()) if valid.size else np.nan,
+                "std": float(valid.std()) if valid.size else np.nan,
+            }
+            for q in quantiles:
+                row[f"q{round(q * 100):02d}"] = (
+                    float(np.quantile(valid, q)) if valid.size else np.nan
+                )
+            row["iqr"] = (
+                float(np.quantile(valid, 0.75) - np.quantile(valid, 0.25)) if valid.size else np.nan
+            )
+            if low_threshold is not None:
+                row["fraction_below"] = (
+                    float(np.mean(valid < low_threshold)) if valid.size else np.nan
+                )
+            rows.append(row)
+    return pd.DataFrame(rows).set_index("block_id")
+
+
 def assign_sensors_to_blocks(points: gpd.GeoDataFrame, blocks: gpd.GeoDataFrame) -> pd.DataFrame:
     """Spatially join point locations to the block containing them.
 

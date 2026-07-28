@@ -1,0 +1,24 @@
+# Hypothesis: persistence + a weather correction beats plain persistence at long
+# horizons. Soil moisture change over (t-h, t] is largely deterministic — water
+# leaves by evapotranspiration (∝ ET₀) and arrives as rain — so a 2-3 parameter
+# linear fit of Δmoisture on cumulative ET₀ + precip over the window should
+# recover the drift persistence ignores, without the overfitting that sank the
+# 40-feature ridge+forecast. Needs forecast_features for the _next_{h}h columns.
+# Baseline: naive.yaml (persistence).
+model: water_balance
+device: SE01-LS-1
+target: soil_water
+features: [soil_water, soil_temperature, soil_conductivity]
+horizons_h: [6, 12, 24, 48]
+n_folds: 5
+forecast_features: true
+wb_use_level: false
+wb_gate_precip_mm: 0.3  # only override persistence when rain is forecast over the window
+wb_robust: true  # Huber Δ-regression: storm outliers no longer make the fit overshoot
+wb_adaptive_blend: true  # shrink correction using only recent training evidence
+wb_val_frac: 0.25
+wb_blend_weights: [0.0, 0.2, 0.4, 0.6, 0.8, 1.0]
+wb_min_fit_rows: 20
+wb_min_val_rows: 10
+wb_huber_max_iter: 500
+irrigate_below: 25.0

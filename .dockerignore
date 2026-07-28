@@ -1,0 +1,37 @@
+# Source-control and local tooling metadata
+.git
+.github
+.gitlab
+.claude
+.serena
+.venv
+.uv-cache
+.pytest_cache
+.mypy_cache
+.ruff_cache
+__pycache__
+*.py[cod]
+
+# Credentials and machine-local configuration
+.env
+.env.*
+.dvc
+*.key
+*.pem
+*.p12
+
+# DVC-managed or generated artifacts never belong in an image
+data
+models
+mlruns
+artifacts
+
+# Files not needed by the inference runtime
+course-site
+docs
+k8s
+scripts
+tests
+htmlcov
+.coverage
+*.ipynb

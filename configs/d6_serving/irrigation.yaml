@@ -1,0 +1,11 @@
+# Local D6 serving defaults from the verified 2026-05-26 KMZ sensor→block join.
+# Blocks with multiple probes use the SE01 device evaluated by D2; revisit fleet
+# aggregation with the vineyard operator before cluster deployment.
+horizons_h: [6, 12, 24, 48]
+irrigate_below: 25.0
+max_age_h: 6.0
+block_devices:
+  Cc: SE01-LS-1
+  P: SE01-LS-2
+  B North: SE01-LS-3
+  F: SE01-LS-4

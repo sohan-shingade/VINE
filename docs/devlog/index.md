@@ -8,3 +8,4 @@ next steps. Draft new posts with the `/devlog` Claude command.
 - [2026-05-25 — Project setup & scaffolding](2026-05-25-project-setup.md)
 - [2026-07-06 — D1 code-complete: the blockers were on the share all along](2026-07-06-d1-imagery-unblocked.md)
 - [2026-07-08 — D2 vs reality: everything loses to persistence (almost)](2026-07-08-d2-honest-numbers.md)
+- [2026-07-23 — D2 closes honestly; D3 and local serving begin](2026-07-23-d2-d3-serving.md)

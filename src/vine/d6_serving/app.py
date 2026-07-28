@@ -1,40 +1,69 @@
-"""FastAPI inference service. One app, three routers (one per model track).
+"""FastAPI inference service for D6 model predictions.
 
-Endpoints mirror the proposal's API design and feed the VINE dashboard and
-digital twin:
-
-    GET  /irrigation/forecast?block_id=X  -> soil moisture + irrigation rec
-    POST /health/analyze                  -> stress class + NDVI score
-    GET  /harvest/readiness?block_id=X    -> readiness score + confidence
-
-Run locally with `make serve`. Containerized per track in docker/.
-Requires the `serve` extra.
+The irrigation endpoint serves the shipped D2 persistence model from sensor
+snapshots. Run locally with ``make serve`` or build its per-track image from
+``docker/d2_irrigation.Dockerfile``.
 """
 
 from __future__ import annotations
 
-from fastapi import FastAPI
+import os
+from pathlib import Path
+
+from fastapi import FastAPI, HTTPException
 
 from vine import __version__
+from vine.common import get_logger
+from vine.common.config import REPO_ROOT, load_config
+from vine.d1_pipeline.ingest import load_snapshot
+from vine.d6_serving.irrigation import (
+    IrrigationForecast,
+    IrrigationServingConfig,
+    NoReadingError,
+    UnknownBlockError,
+    build_irrigation_forecast,
+)
 
+log = get_logger(__name__)
 app = FastAPI(title="VINE Inference API", version=__version__)
+
+_SERVING_CONFIG_PATH = Path(
+    os.environ.get(
+        "VINE_SERVING_CONFIG",
+        str(REPO_ROOT / "configs/d6_serving/irrigation.yaml"),
+    )
+)
+_SERVING_CONFIG = IrrigationServingConfig(**load_config(_SERVING_CONFIG_PATH))
 
 
 @app.get("/healthz")
 def healthz() -> dict[str, str]:
-    """Kubernetes liveness/readiness probe."""
+    """Return process health for Kubernetes probes."""
     return {"status": "ok", "version": __version__}
 
 
-@app.get("/irrigation/forecast")
-def irrigation_forecast(block_id: str) -> dict[str, object]:
-    """Predicted soil moisture + irrigation recommendation for a block."""
-    # TODO(D6): load model, return horizon forecasts + recommendation.
-    return {"block_id": block_id, "forecast": None, "recommend_irrigation": None}
+@app.get("/irrigation/forecast", response_model=IrrigationForecast)
+def irrigation_forecast(block_id: str) -> IrrigationForecast:
+    """Return a persistence forecast and threshold advice for a vineyard block."""
+    try:
+        return build_irrigation_forecast(block_id, _SERVING_CONFIG, load_snapshot)
+    except UnknownBlockError as exc:
+        raise HTTPException(status_code=404, detail=f"unknown block: {block_id}") from exc
+    except (NoReadingError, FileNotFoundError) as exc:
+        log.warning(
+            "irrigation forecast unavailable",
+            block_id=block_id,
+            error_type=type(exc).__name__,
+            error=str(exc),
+        )
+        raise HTTPException(
+            status_code=503,
+            detail="irrigation forecast temporarily unavailable",
+        ) from exc
 
 
 @app.get("/harvest/readiness")
 def harvest_readiness(block_id: str) -> dict[str, object]:
-    """Harvest-readiness score (0-1) + confidence interval for a block."""
+    """Return the placeholder harvest-readiness contract for a block."""
     # TODO(D6): load model, return readiness + CI + days-to-harvest.
     return {"block_id": block_id, "readiness": None, "ci": None}
