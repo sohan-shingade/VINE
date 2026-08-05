@@ -52,5 +52,9 @@ class IrrigationConfig(BaseModel):
     lr: float = 1e-3
     epochs: int = 50
     batch_size: int = 128
+    # Probabilistic (CRPS) knobs: see vine.d2_irrigation.probabilistic.
+    crps_sigma_halflife: float = 72.0  # EWMA halflife in valid h-step error pairs
+    crps_min_pairs: int = Field(default=24, ge=2)  # warmup before a sigma is emitted
+    crps_clim_max_sample: int = Field(default=300, ge=10)  # climatology ensemble cap
     # Decision layer: recommend irrigation when predicted moisture crosses this.
     irrigate_below: float = 25.0

@@ -8,8 +8,8 @@
 
 ## TL;DR: resume here
 
-**D1 complete; D2 closed with persistence served after 13 rejected challenger
-families (error correction and diurnal drift now included); D3 screening artifact current plus a
+**D1 complete; D2 closed with persistence served after 15 rejected challenger
+families (a CRPS probabilistic wrapper beat persistence in aggregate everywhere yet missed the worst-fold gate in 3 of 20 cells); D3 screening artifact current plus a
 pseudo-label CNN pipeline-validation run; D4 descoped-exploratory; D5/D7
 reports final with the June devlog gap filled; D6 has live cluster access
 (namespace `ihv-jupyterlab`), base resources applied, data seeded, and a
@@ -26,13 +26,17 @@ is ever active**. Four 6/12 h cells are exactly 0.000, because the correction
 never fires there and water balance is identical to persistence. The
 ADR-0003 gate therefore fails. **Persistence remains the served D2 forecaster** and
 water balance stays research with a sharper open question: per-fold
-forecast-bust robustness rather than a new model family. Thirteen challenger
+forecast-bust robustness rather than a new model family. Fifteen challenger
 families have now been evaluated and rejected; Prophet and LSTM, the last two
 proposal-named families, joined the list on 2026-08-05 (Prophet aggregate skill
 −14.7 to −2.5%, LSTM −4.2 to −8.3%, neither positive anywhere), followed the
-same day by diurnal-drift (returns-space hour-of-day seasonality) and a
+same day by diurnal-drift (returns-space hour-of-day seasonality), a
 cross-probe error-correction model (spread mean-reversion is real, AR(1) 0.95
-to 0.98 hourly, but far too slow to beat the last observation). The pooled and water-balance
+to 0.98 hourly, but far too slow to beat the last observation), a CRPS
+probabilistic wrapper (aggregate CRPS skill positive in all 20 cells, the
+first family to manage that, yet worst-fold negative in 3), and a rain-gated
+water-balance hybrid (keeps the event-window win, still loses the fired
+subset at 24 h). The pooled and water-balance
 rungs ran on all five probes, the earlier per-sensor rungs on four
 (SE0X-LS-1 was only recovered on 2026-07-09).
 
@@ -59,7 +63,7 @@ now live: kubeconfig + kubelogin work, namespaces `ihv-jupyterlab` and
 `ihv-llm` are usable, the base ConfigMap and both CephFS PVCs are applied and
 Bound, raw sensor and weather data are seeded onto the data PVC, and a
 smoke-tested linux/amd64 image is built locally. The only missing step is a
-GitLab project to push the image to. Current local gate: **248 tests passed**;
+GitLab project to push the image to. Current local gate: **288 tests passed**;
 Ruff, formatting, mypy, strict MkDocs, codemap regeneration, and deterministic report
 regeneration are clean. The sensor and weather snapshots (including the archived
 forecast-vintage parquet) are re-pinned and pushed to the `nrp` remote; the
@@ -146,7 +150,7 @@ winter/dormant; the useful growing-season flights are Aug (pre-harvest) + Oct
 |---|-------------|--------|-------|
 | — | Repo + Claude Code scaffold + wiki | ☑ | builds green: ruff/mypy/tests |
 | D1 | Data pipeline | ☑ | **all three reachable inputs done + live-verified**: sensor path (ingest→flags→features→weather/GDD), weather reader (historical, forecast, **and archived forecast vintages**), **imagery path** (WebDAV flight index → capture grouping → band download → NDVI) + **block alignment** (39 KMZ polygons, sensor→block join, windowed zonal stats with polygon-interior coverage). Historical records (input #3) remain a mentor Q, and matter only for D4 |
-| D2 | Irrigation models | ☑ | **Closed: persistence is the served forecaster.** Thirteen challenger families evaluated and rejected, now including Prophet, LSTM, diurnal-drift, and cross-probe error correction (2026-08-05; none pass the worst-fold gate). Water balance was validated on **real archived forecast vintages**: the 48 h aggregate edge survives (+5.3…+13.5%), 24 h flips negative, worst-fold skill negative wherever the correction is active → not promoted, stays research. D6 serves persistence+threshold |
+| D2 | Irrigation models | ☑ | **Closed: persistence is the served forecaster.** Fifteen challenger families evaluated and rejected (2026-08-05: diurnal-drift, error correction, a CRPS probabilistic wrapper, and a rain-gated hybrid joined; none pass the worst-fold gate, though the CRPS wrapper is the first with positive aggregate skill in all 20 cells). The event study shows event hours are 2 to 5% of the holdout yet carry 17 to 40% of persistence's error, and the vintage water balance wins those hours at 24/48 h → tail value exists, quiet-hour and forecast-bust costs still block promotion. D6 serves persistence+threshold |
 | D3 | Plant-health CV | ☑ (label-free scope) | Corrected 39-block screen complete on real 2026-06-01 rasters: 39/39 pass the polygon-interior coverage gate, deterministic concern ranks retained as a versioned artifact and rendered offline. A pseudo-label CNN pipeline-validation run (ResNet-50, NDVI/NDRE channels, block-level split, val acc 0.806) proves the supervised training path end to end; its card states plainly it is not stress detection. Supervised classification remains blocked on mentor-provided labels |
 | D4 | Harvest timing | ☑ (descoped-exploratory) | No harvest/yield/Brix labels exist (input #3), so per ADR-0003 D4 is exploratory: a label-free GDD/Winkler phenology module with no learned parameters, plus a report and model card that state plainly it does not ship. Supervised D4 stays blocked on records |
 | D5 | Evaluation report | ☑ | Shared metrics, expanding walk-forward, per-fold skill, `h−1` training-label purge. Final report is regenerated offline from pinned snapshots with no MLflow or network dependency |
@@ -455,6 +459,36 @@ winter/dormant; the useful growing-season flights are Aug (pre-harvest) + Oct
   only, deliberately not wired into D6 serving. MLflow run
   `52649766c9a44bc784ad6515ee75e58d`. Gate: **248 tests passed**, mkdocs
   strict clean, codemap regenerated.
+
+- **2026-08-05 (late night)**: **Event study quantifies the tail, and two more
+  challengers (14 and 15) probe it: a CRPS probabilistic wrapper and a
+  rain-gated water-balance hybrid. Persistence stays served; count now
+  fifteen.** (1) **Event study:** scoring only the hours inside detected rise
+  events plus a trailing 24 h shows event hours are 2.2 to 4.6% of the SE01
+  holdout yet carry 17.3 to 39.8% of persistence's total absolute error
+  (event MAE roughly 6 to 28x quiet). The vintage water balance beats
+  persistence on event hours at 24 h (+0.030 to +0.283) and 48 h (+0.224 to
+  +0.626) on every probe with events, and loses aggregate 24 h only through
+  quiet hours. All event evidence comes from the single Apr 20 to 22 storm.
+  MLflow `d1deb61b46aa44b780bc6ecd46200a5e`. (2) **CRPS wrapper (14):**
+  Gaussian centered on persistence with causal EWMA spread. Aggregate CRPS
+  skill positive in all 20 cells (+0.094 to +0.266), the first family to
+  manage that on any aggregate metric; 90% coverage 0.87 to 0.96; worst-fold
+  gate still fails in 3 cells (one truncated May-outage fold, two near-zero
+  early folds). Controls: fixed spread and climatology both fail badly, so
+  the adaptive spread carries the value. MLflow
+  `e5f950958fc345edafefb24b18dc8469`. (3) **Rain-gated hybrid (15):**
+  persistence unless forecast precip over the horizon window clears a
+  causally selected threshold (84 of 100 folds picked 5.0 mm). Retains 87 to
+  105% of the water balance's event win and turns 48 h aggregate positive on
+  all probes (+0.051 to +0.122), yet the fired subset at 24 h is negative
+  everywhere (−0.094 to −0.267) and threshold choice cannot separate
+  forecast busts from hits, so weak dominance fails. MLflow
+  `2292358f1a41441285d3c1fbcb1a06d6`. Verdict across the metric ladder:
+  point MAE unbeaten, Brier beaten by first passage at 12 to 48 h, CRPS
+  beaten in aggregate everywhere with 3 worst-fold misses, tail hours beaten
+  by water balance at 24/48 h. Gate: **288 tests passed**, mkdocs strict
+  clean, codemap regenerated.
 
 ## Open questions for mentor
 

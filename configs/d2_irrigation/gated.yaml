@@ -1,0 +1,36 @@
+# Rain-gated persistence hybrid (D2): persistence by default, the
+# water-balance correction only when the archived forecast available at the
+# origin predicts material rain over the horizon window. Water-balance knobs
+# match water_balance_vintage.yaml; event detection matches event_study.yaml.
+# One global gate threshold is selected per walk-forward fold on the training
+# window alone; all candidates are also reported for sensitivity.
+model: water_balance
+device: SE01-LS-1
+target: soil_water
+features: [soil_water, soil_temperature, soil_conductivity]
+horizons_h: [6, 12, 24, 48]
+n_folds: 5
+forecast_features: true
+weather_source: vintage
+wb_use_level: false
+wb_gate_precip_mm: 0.3
+wb_robust: true
+wb_adaptive_blend: true
+wb_val_frac: 0.25
+wb_blend_weights: [0.0, 0.2, 0.4, 0.6, 0.8, 1.0]
+wb_min_fit_rows: 20
+wb_min_val_rows: 10
+wb_huber_max_iter: 500
+irrigate_below: 25.0
+# Gate parameters (read by scripts/d2_gated.py, popped before
+# IrrigationConfig validation).
+gate:
+  thresholds_mm: [0.5, 1.0, 2.0, 5.0]
+  val_frac: 0.25
+# Event detection + mask parameters, identical to event_study.yaml.
+event_detection:
+  min_jump: 0.5
+  max_span_h: 12
+  rise_tol: 0.0
+  rain_mm: 1.0
+  trailing_h: 24

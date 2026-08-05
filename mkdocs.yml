@@ -68,5 +68,8 @@ nav:
       - D3 offline screening (2026-08-05): reports/2026-08-05-d3-screening.md
       - D2 inferred irrigation events (2026-08-05): reports/2026-08-05-inferred-irrigation-events.md
       - D2 first-passage alert probabilities (2026-08-05): reports/2026-08-05-first-passage-alerts.md
+      - D2 event-conditioned evaluation (2026-08-05): reports/2026-08-05-event-study.md
+      - D2 probabilistic CRPS forecasts (2026-08-05): reports/2026-08-05-crps-probabilistic.md
+      - D2 rain-gated water balance (2026-08-05): reports/2026-08-05-gated-water-balance.md
   - Roadmap: roadmap.md
   - Glossary: glossary.md

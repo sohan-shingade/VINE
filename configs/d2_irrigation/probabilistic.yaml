@@ -1,0 +1,19 @@
+# Hypothesis: thirteen challenger families failed to beat persistence on point
+# MAE, so this rung changes the score to CRPS, the industry-standard proper
+# scoring rule over full predictive distributions. A deterministic forecast is
+# a point mass whose CRPS equals its absolute error, so persistence's CRPS
+# baseline equals its MAE. A Gaussian centered on the same persistence level
+# with an honestly calibrated spread scores strictly better if the calibration
+# is real. Spread variants: a causal EWMA of past absolute h-step persistence
+# errors, and one fixed scale fit per training fold. The training-fold
+# climatology as an empirical ensemble is the standard meteorology reference.
+# Baseline: persistence as a point mass (its CRPS is identical to its MAE).
+model: probabilistic
+target: soil_water
+features: [soil_water]
+horizons_h: [6, 12, 24, 48]
+n_folds: 5
+irrigate_below: 25.0
+crps_sigma_halflife: 72.0
+crps_min_pairs: 24
+crps_clim_max_sample: 300
