@@ -67,6 +67,9 @@ nav:
       - "2026-08-05: The decision layer": devlog/2026-08-05-decision-layer.md
       - "2026-08-05: The skill ceiling": devlog/2026-08-05-skill-ceiling.md
       - "2026-08-05: The irrigation clock": devlog/2026-08-05-survival-clock.md
+  - Notebooks:
+      - Irrigation results: notebooks/01-irrigation-results.md
+      - Pipeline datasheet: notebooks/02-pipeline-datasheet.md
   - Reports:
       - Reproducible final evaluation (2026-08-05): reports/2026-08-05-final-evaluation.md
       - D4 GDD phenology exploration (2026-08-04): reports/2026-08-04-d4-gdd-exploration.md
