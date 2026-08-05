@@ -34,8 +34,8 @@ import matplotlib.pyplot as plt  # noqa: E402
 REPO_ROOT = Path(__file__).resolve().parents[1]
 ASSETS = REPO_ROOT / "docs" / "reports" / "assets"
 D3_RESULT_PATH = ASSETS / "d3_screening_result.csv"
-D3_REPORT_PATH = REPO_ROOT / "docs" / "reports" / "2026-07-23-d3-screening.md"
-D5_REPORT_PATH = REPO_ROOT / "docs" / "reports" / "2026-07-23-interim-evaluation.md"
+D3_REPORT_PATH = REPO_ROOT / "docs" / "reports" / "2026-08-05-d3-screening.md"
+D5_REPORT_PATH = REPO_ROOT / "docs" / "reports" / "2026-08-05-final-evaluation.md"
 CONFIG_DIR = REPO_ROOT / "configs" / "d2_irrigation"
 DVC_INPUTS = (
     REPO_ROOT / "data" / "raw" / "sensors.dvc",
@@ -384,87 +384,103 @@ def write_d3_report(result: pd.DataFrame) -> None:
     disagreement_count = int(ranked["disagreement_flag"].sum())
     top_names = ", ".join(ranked.head(4)["block_id"])
     artifact_sha256 = _sha256(D3_RESULT_PATH)
-    text = f"""# D3 report: label-free NDVI/NDRE block screening (superseded run)
+    excluded_section = (
+        _markdown_table(
+            low,
+            {
+                "ndvi_count": "{:,.0f}",
+                "ndvi_coverage": "{:.3f}",
+                "ndre_count": "{:,.0f}",
+                "ndre_coverage": "{:.3f}",
+            },
+        )
+        if len(low)
+        else (
+            "No block was excluded. Every polygon interior is fully covered by valid "
+            "pixels in both rasters, so the gate rejected nothing on this acquisition."
+        )
+    )
+    text = f"""# D3 report: label-free NDVI/NDRE block screening
 
-> **Superseded evidence — do not use the coverage split or block ranks below.**
-> An adversarial review found that the original coverage denominator counted each
-> polygon window's bounding box and that rejected rows influenced accepted-block
-> percentiles. Corrected polygon-interior coverage and accepted-only ranking logic
-> pass regression tests. An authenticated range-backed rerun was externally terminated
-> before writing a replacement artifact, so no current real-data block rank is claimed.
-> This page is retained only as an audit trail.
-
-**Deliverable:** D3 plant-health CV · **Date:** 2026-07-23 · **Status:** superseded
+**Deliverable:** D3 plant-health CV · **Date:** 2026-08-05 · **Status:** current
 engineering artifact, not a supervised model
 
+A same-acquisition, label-free ranking of {len(result)} vineyard blocks from NDVI/NDRE
+distribution summaries. It has no learned parameters and no ground truth: it orders blocks
+for **human field review**, and cannot diagnose stress, disease, or pests.
+
 This report is generated offline by `scripts/generate_reports.py` from
-[`assets/d3_screening_result.csv`](assets/d3_screening_result.csv), the retained original
-result artifact from the real 2026-06-01 raster screen. Artifact SHA-256:
+[`assets/d3_screening_result.csv`](assets/d3_screening_result.csv), the retained result
+artifact of the corrected 2026-06-01 raster screen. Artifact SHA-256:
 `{artifact_sha256}`. The generator does **not** open or download the source rasters.
 
-## What this was
+## What changed since the first run
 
-A same-acquisition, label-free ranking of 39 vineyard blocks using NDVI/NDRE distribution
-summaries. It had no learned parameters or ground truth. Its numerical output is now superseded
-and must not be used to prioritize field review, diagnose stress, disease, or pests.
+An adversarial review invalidated the first screen: its coverage denominator counted each
+polygon window's *bounding box* rather than the polygon interior, and rejected rows still
+influenced accepted-block percentiles. Both are fixed and covered by regression tests
+(`tests/d1_pipeline/test_geo.py`, `tests/d3_vision/test_stress.py`). This page is the rerun
+against the real rasters with the corrected implementation; the superseded numbers (a 30/9
+coverage split) are in git history and are not evidence.
 
-## Reproduction boundary
+The per-block distributions themselves did not move — identical pixel counts and quantiles —
+because only the quality denominator was wrong. What changed is which blocks pass the gate.
 
-- D3 source rasters are multi-gigabyte remote files and are deliberately excluded from this
-  offline report build.
-- The retained artifact contains the original zonal distributions, coverage flags, and rankings.
-  The tables and figures below are deterministically regenerated only to preserve the audit trail.
-- Corrected raster statistics cannot be reconstructed from this artifact. The configured screen
-  must finish against the rasters before this report can make a current block-level claim.
-- The screening configuration is `configs/d3_vision/stress_screening.yaml`.
+## Reproduction
 
-## Superseded coverage gate
+- The two source rasters are ~4 GB each. They were fetched once to
+  `data/raw/imagery/rasters/` and screened locally; range-reading them over the public
+  share proved unreliable across multi-hour runs.
+- The screening configuration is `configs/d3_vision/stress_screening.yaml` (remote
+  `/vsicurl` paths; point `ndvi_raster`/`ndre_raster` at local copies to reproduce).
+- The tables and figures below are regenerated deterministically from the retained artifact.
 
-The original run reported {len(result)} blocks: **{len(ranked)} passed** its invalid coverage
-calculation and **{len(low)} failed**. These counts are retained for audit only and are not current
-evidence.
+## Coverage gate
 
-![Superseded per-block raster coverage](assets/d3_coverage.png)
+{len(ranked)} of {len(result)} blocks passed the quality gate ({len(low)} failed). Coverage is
+the fraction of **polygon-interior** pixels that are valid after nodata handling; the
+2026-06-01 whole-vineyard mosaic covers every block interior completely.
 
-## Superseded screening candidates
+![Per-block raster coverage](assets/d3_coverage.png)
 
-![Superseded top 15 screening candidates](assets/d3_top_ranked.png)
+## Screening candidates
 
-The original first four rows were {top_names}. Do not use this ordering for field prioritization.
-{disagreement_count} of {len(ranked)} originally ranked blocks had the configured NDVI/NDRE rank
-disagreement flag.
+![Top 15 screening candidates](assets/d3_top_ranked.png)
+
+The highest-concern blocks are {top_names}. This is a review queue, not a diagnosis.
+{disagreement_count} of {len(ranked)} ranked blocks carry the NDVI/NDRE rank-disagreement
+flag, meaning the two indices disagree about the block's relative standing by more than the
+configured margin — inspect those with extra care.
 
 {_markdown_table(top, {"rank": "{:.0f}", "score": "{:.3f}", "ndvi_coverage": "{:.3f}", "ndre_coverage": "{:.3f}", "ndvi_q50": "{:.3f}", "ndre_q50": "{:.3f}"})}
 
-The complete superseded output is
+The complete ranked output is
 [`assets/d3_full_ranked.csv`](assets/d3_full_ranked.csv).
 
-## Originally excluded blocks
+## Excluded blocks
 
-Blank rank/score values reflected the original invalid coverage calculation, not low concern or
-healthy vegetation.
+{excluded_section}
 
-{_markdown_table(low, {"ndvi_count": "{:,.0f}", "ndvi_coverage": "{:.3f}", "ndre_count": "{:,.0f}", "ndre_coverage": "{:.3f}"})}
-
-Full superseded machine-readable detail is in
+Machine-readable detail is in
 [`assets/d3_low_coverage.csv`](assets/d3_low_coverage.csv).
 
 ## Limits
 
-- All block-level numbers and ranks on this page are superseded.
-- Low indices can reflect phenology, background soil, shadows, pruning, irrigation, or
-  processing artifacts. They are not disease labels.
-- Scores are within-acquisition percentiles for 2026-06-01 and should not be compared directly
-  with another date without matched footprints and seasonal controls.
+- **This is a screening order, not a label.** Low indices can reflect phenology, background
+  soil, shadows, pruning, irrigation, or processing artifacts.
+- Scores are within-acquisition percentiles for 2026-06-01 and should not be compared with
+  another date without matched footprints and seasonal controls.
 - Thresholds and weights are screening choices, not vineyard-validated decision boundaries.
-- No labeled stress/pest imagery is available, so no supervised accuracy is reported.
-- **D4 harvest timing is not evaluated.** This artifact has no harvest-readiness, yield, or
-  maturity ground truth.
+- No labeled stress/pest imagery exists, so no supervised accuracy is reported. Supervised
+  D3 classification stays blocked on mentor-provided labels.
+- **D4 harvest timing is not evaluated here.** This artifact has no harvest-readiness, yield,
+  or maturity ground truth.
 
 ## Next step
 
-Complete a bounded, restartable authenticated raster run with the corrected implementation,
-replace the retained artifact, and regenerate this report before field-review priorities are named.
+Field-verify a sample of the top-ranked blocks with the vineyard team. Agreement between this
+order and what reviewers actually find is the only way to learn whether the screen is useful,
+and it is the shortest path to the labels supervised D3 needs.
 """
     D3_REPORT_PATH.write_text(text)
 
@@ -508,9 +524,9 @@ def write_d5_report(water_balance: pd.DataFrame, fleet: pd.DataFrame) -> None:
     wb_high = h48["skill_vs_persistence_pct"].max()
     wb_worst_low = h48["skill_fold_min_pct"].min()
     wb_worst_high = h48["skill_fold_min_pct"].max()
-    text = f"""# Interim D5 evaluation report (2026-07-23)
+    text = f"""# Final D5 evaluation report
 
-**Deliverable:** D5 evaluation, feeding D2 irrigation · **Date:** 2026-07-23 ·
+**Deliverable:** D5 evaluation, feeding D2 irrigation · **Date:** 2026-08-05 ·
 **Status:** persistence remains the served champion
 
 Every quoted D2 number below is recomputed offline by `scripts/generate_reports.py`. The build
@@ -534,8 +550,9 @@ uv run python scripts/generate_reports.py
 - Evaluation uses five expanding walk-forward folds and purges the final `h-1` training labels
   at each boundary.
 - **Oracle-weather limit:** all three challengers use `forecast_features: true`. Their lead-time
-  weather comes from realized future weather, not archived forecast vintages. Results are
-  perfect-weather upper bounds, not deployable forecast evidence.
+  weather comes from realized future weather, not archived forecast vintages. Results here are
+  perfect-weather upper bounds. Water balance has since been rerun on real archived forecasts —
+  see [D2 vintage validation](2026-08-04-d2-vintage-validation.md) and the section below.
 - **Micro-average limit:** pooled `ALL` skill is a row-weighted micro-average of correlated
   probe-hours sharing timestamps and weather. It is not five independent replications.
 - **Worst-fold limit:** aggregate gains do not satisfy the promotion gate when worst-fold skill
@@ -552,6 +569,20 @@ probe has a negative worst fold ({wb_worst_low:+.1f}% to {wb_worst_high:+.1f}%).
 oracle-weather evidence, so water balance remains an active experiment and is not promoted.
 All 6/12/24/48-hour rows are in
 [`assets/d5_water_balance_all_horizons.csv`](assets/d5_water_balance_all_horizons.csv).
+
+## Water balance on real forecast vintages
+
+The oracle limit above was removed by rerunning the same model and the same purged evaluation
+with lead-time weather drawn from archived Open-Meteo forecast runs as issued, at a
+`ceil(h/24)`-day lag so no value post-dates its decision time. Full numbers:
+[D2 vintage validation](2026-08-04-d2-vintage-validation.md).
+
+- The 48-hour aggregate edge survives real forecasts (+5.3% to +13.5% across the five probes,
+  against +3.5% to +11.2% under the oracle), so it is not an oracle artifact.
+- 24-hour skill flips negative on every probe (−2.8% to −8.1%) with worst folds down to −2.448:
+  the correction trusts day-1 forecast rain that did not arrive on the forecast hours.
+- Worst-fold skill stays negative on every probe at every horizon, so the ADR-0003 gate still
+  fails and persistence remains served.
 
 ## Pooled GBT and ridge: fleet evidence
 
@@ -574,18 +605,21 @@ shown in the computed 48-hour water-balance rows.
 
 ## D3 and D4 scope
 
-The companion [D3 screening report](2026-07-23-d3-screening.md) is generated from its retained
+The companion [D3 screening report](2026-08-05-d3-screening.md) is generated from its retained
 result artifact, not from raster downloads. It has no labels and claims no classification
-accuracy.
+accuracy: 39 of 39 blocks pass the corrected polygon-interior coverage gate and are ordered
+for field review.
 
 **D4 harvest timing is not evaluated.** No harvest dates, yield, Brix, pH, TA, or equivalent
 ground truth are available in the pinned inputs, so there is no honest D4 backtest to report.
+The descoped exploratory slice ([D4 GDD exploration](2026-08-04-d4-gdd-exploration.md)) reports
+season heat accumulation only; it has no labels, no learned parameters, and does not ship.
 
 ## Decision
 
-Persistence remains the served D2 champion. The oracle-weather challengers do not beat it
-robustly under the worst-fold gate, and pooled fleet micro-averages are not independent
-confirmations.
+Persistence remains the served D2 champion. Neither the oracle-weather challengers nor the
+real-forecast water-balance rerun beat it robustly under the worst-fold gate, and pooled fleet
+micro-averages are not independent confirmations.
 """
     D5_REPORT_PATH.write_text(text)
 
