@@ -150,7 +150,7 @@ winter/dormant; the useful growing-season flights are Aug (pre-harvest) + Oct
 |---|-------------|--------|-------|
 | — | Repo + Claude Code scaffold + wiki | ☑ | builds green: ruff/mypy/tests |
 | D1 | Data pipeline | ☑ | **all three reachable inputs done + live-verified**: sensor path (ingest→flags→features→weather/GDD), weather reader (historical, forecast, **and archived forecast vintages**), **imagery path** (WebDAV flight index → capture grouping → band download → NDVI) + **block alignment** (39 KMZ polygons, sensor→block join, windowed zonal stats with polygon-interior coverage). Historical records (input #3) remain a mentor Q, and matter only for D4 |
-| D2 | Irrigation models | ☑ | **Closed: persistence is the served forecaster.** Fifteen challenger families evaluated and rejected (2026-08-05: diurnal-drift, error correction, a CRPS probabilistic wrapper, and a rain-gated hybrid joined; none pass the worst-fold gate, though the CRPS wrapper is the first with positive aggregate skill in all 20 cells). The event study shows event hours are 2 to 5% of the holdout yet carry 17 to 40% of persistence's error, and the vintage water balance wins those hours at 24/48 h → tail value exists, quiet-hour and forecast-bust costs still block promotion. D6 serves persistence+threshold |
+| D2 | Irrigation models | ☑ | **Closed: persistence is the served forecaster.** Sixteen challenger families evaluated; the first fifteen rejected (none passed the worst-fold gate). The sixteenth, an FHS ensemble scored on CRPS with the center held at persistence, is the **first to pass the ADR-0003 gate in all 20 cells** (skill +0.169 to +0.426, worst fold min +0.093) and attains 64 to 88% of the exact hindsight skill ceiling (ADR-0011); held as research because the point endpoint is unaffected. The event study shows event hours are 2 to 5% of the holdout yet carry 17 to 40% of persistence's error, and the vintage water balance wins those hours at 24/48 h → tail value exists, quiet-hour and forecast-bust costs still block promotion. D6 serves persistence+threshold |
 | D3 | Plant-health CV | ☑ (label-free scope) | Corrected 39-block screen complete on real 2026-06-01 rasters: 39/39 pass the polygon-interior coverage gate, deterministic concern ranks retained as a versioned artifact and rendered offline. A pseudo-label CNN pipeline-validation run (ResNet-50, NDVI/NDRE channels, block-level split, val acc 0.806) proves the supervised training path end to end; its card states plainly it is not stress detection. Supervised classification remains blocked on mentor-provided labels |
 | D4 | Harvest timing | ☑ (descoped-exploratory) | No harvest/yield/Brix labels exist (input #3), so per ADR-0003 D4 is exploratory: a label-free GDD/Winkler phenology module with no learned parameters, plus a report and model card that state plainly it does not ship. Supervised D4 stays blocked on records |
 | D5 | Evaluation report | ☑ | Shared metrics, expanding walk-forward, per-fold skill, `h−1` training-label purge. Final report is regenerated offline from pinned snapshots with no MLflow or network dependency |
@@ -547,6 +547,39 @@ winter/dormant; the useful growing-season flights are Aug (pre-harvest) + Oct
   200k-path Monte Carlo pin of the crossing recursion. Devlog post
   `docs/devlog/2026-08-05-decision-layer.md`. Gate: **314 tests passed**,
   mkdocs strict clean.
+
+- **2026-08-05 (late): skill-ceiling theorem, oracle bound, and FHS ensemble
+  (research, not promoted; first gate passer).** New module
+  `vine.d2_irrigation.ceiling` plus runner `scripts/d2_ceiling.py`, config
+  `configs/d2_irrigation/ceiling.yaml`, and ADR-0011. The ceiling theorem:
+  for a near-martingale state the maximum attainable CRPS skill over the
+  persistence point mass is 1 minus 0.5 * GMD(Z) / E|Z|, a pure shape
+  functional of the standardized innovation (Gaussian 1 - 1/sqrt(2) = 0.2929,
+  Laplace exactly 1/4, uniform exactly 1/3, heavier tails lower; all three
+  closed forms unit-tested against simulation). Every training-shape ceiling
+  on the record sits at 0.112 to 0.283, below the Gaussian value, so the
+  innovations are heavy tailed everywhere. A second, exactly computable
+  hindsight bound follows from propriety plus positive homogeneity: per fold
+  the optimal sigma-scaled single-shape law realizes total CRPS
+  0.5 * weighted_GMD(u, sigma) * sum(sigma); efficiency against it is
+  deterministically bounded by one (unit-tested invariant). The filtered
+  historical simulation ensemble (persistence center, causal EWMA sigma,
+  shape = standardized training-error law thinned to 512 quantile points, no
+  fitted parameters) beats the rung-14 Gaussian in **all 20 probe-horizon
+  cells** (aggregate CRPS skill +0.169 to +0.426, mean 0.306 vs 0.193) with
+  **positive worst-fold skill in all 20** (min +0.093), making it the first
+  challenger family out of sixteen to pass the ADR-0003 gate, repairing the
+  three cells the Gaussian failed. FHS attains 64 to 88 percent of the
+  hindsight optimum; a recency-and-sigma-weighted adaptive variant
+  (halflife 500 rows, fixed a priori) raises the worst-fold floor to +0.146
+  and wins 17 of 20 cells but gives back skill on SE0X-LS-1, so plain FHS
+  keeps uniform dominance. Residual gap identified as conditional-shape
+  information. Caveat: FHS 50 percent intervals under-cover (0.343 to
+  0.701). Point endpoint untouched; persistence stays served. Report
+  `docs/reports/2026-08-05-skill-ceiling.md`; table
+  `docs/reports/assets/d2_ceiling_results.csv`; 18 new tests; MLflow run
+  `94253f29c4324271875f5ce48e7b3d07`. Devlog post
+  `docs/devlog/2026-08-05-skill-ceiling.md`. Gate: **332 tests passed**.
 
 ## Open questions for mentor
 

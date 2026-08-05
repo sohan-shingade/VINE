@@ -1,0 +1,19 @@
+# Hypothesis: rung 14 established that a Gaussian spread around persistence
+# beats the persistence point mass on CRPS in every cell. This rung adds the
+# theoretical ceiling on that skill. With y = mu + sigma * Z, persistence's
+# mean CRPS is mean(sigma) * E|Z| and the ideal calibrated forecaster's is
+# mean(sigma) * 0.5 * GMD(Z), so the maximum attainable CRPS skill is the pure
+# shape functional 1 - 0.5 * GMD(Z) / E|Z| (Gaussian Z: 1 - 1/sqrt(2), about
+# 0.2929). A filtered historical simulation ensemble, mu + sigma * {z_i} with
+# {z_i} the standardized training-fold persistence errors, attains the ceiling
+# by construction if the standardized shape is stable. Models: persistence
+# point mass (baseline), the rung-14 Gaussian EWMA (anchor), and FHS.
+model: ceiling
+target: soil_water
+features: [soil_water]
+horizons_h: [6, 12, 24, 48]
+n_folds: 5
+irrigate_below: 25.0
+crps_sigma_halflife: 72.0
+crps_min_pairs: 24
+ceiling_max_sample: 512

@@ -56,5 +56,7 @@ class IrrigationConfig(BaseModel):
     crps_sigma_halflife: float = 72.0  # EWMA halflife in valid h-step error pairs
     crps_min_pairs: int = Field(default=24, ge=2)  # warmup before a sigma is emitted
     crps_clim_max_sample: int = Field(default=300, ge=10)  # climatology ensemble cap
+    ceiling_max_sample: int = Field(default=512, ge=10)  # FHS shape ensemble cap (ceiling rung)
+    ceiling_shape_halflife: float = Field(default=500.0, gt=0)  # adaptive-shape age halflife, rows
     # Decision layer: recommend irrigation when predicted moisture crosses this.
     irrigate_below: float = 25.0

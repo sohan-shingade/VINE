@@ -56,12 +56,15 @@ nav:
       - 0007 NRP infrastructure: adr/0007-nrp-infrastructure.md
       - 0008 Sensor source (InfluxDB): adr/0008-sensor-source-influxdb.md
       - 0009 Weather data sources: adr/0009-weather-data-sources.md
+      - 0010 Economic value for alerts: adr/0010-economic-value-for-alert-rules.md
+      - 0011 Skill ceiling evaluation: adr/0011-skill-ceiling-evaluation.md
   - Devlog:
       - Overview: devlog/index.md
       - 2026-07-23 — D2, D3 & serving: devlog/2026-07-23-d2-d3-serving.md
       - 2026-08-05 — Final push: devlog/2026-08-05-final-push.md
       - "2026-08-05: June in review": devlog/2026-08-05-june-in-review.md
       - "2026-08-05: The decision layer": devlog/2026-08-05-decision-layer.md
+      - "2026-08-05: The skill ceiling": devlog/2026-08-05-skill-ceiling.md
   - Reports:
       - Reproducible final evaluation (2026-08-05): reports/2026-08-05-final-evaluation.md
       - D4 GDD phenology exploration (2026-08-04): reports/2026-08-04-d4-gdd-exploration.md
@@ -74,5 +77,6 @@ nav:
       - D2 rain-gated water balance (2026-08-05): reports/2026-08-05-gated-water-balance.md
       - Irrigation control policy review (2026-08-05): reports/2026-08-05-irrigation-control-review.md
       - D2 optimal-stopping decision layer (2026-08-05): reports/2026-08-05-optimal-stopping.md
+      - D2 skill ceiling and FHS ensemble (2026-08-05): reports/2026-08-05-skill-ceiling.md
   - Roadmap: roadmap.md
   - Glossary: glossary.md
