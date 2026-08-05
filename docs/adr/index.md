@@ -16,3 +16,4 @@ the `/adr` Claude command or copy [`0000-template.md`](0000-template.md).
 | [0007](0007-nrp-infrastructure.md) | NRP.ai infrastructure mapping (S3, CephFS, registry, LLM) | Accepted |
 | [0008](0008-sensor-source-influxdb.md) | Sensor data from InfluxDB/ThingsBoard (not files) | Accepted |
 | [0009](0009-weather-data-sources.md) | Weather: reanalysis archive + forecast (not AWIPS for history) | Accepted |
+| [0010](0010-economic-value-for-alert-rules.md) | Cost-loss economic value for D2 irrigation alert rules | Accepted |

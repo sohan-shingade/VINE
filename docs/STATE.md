@@ -516,6 +516,32 @@ winter/dormant; the useful growing-season flights are Aug (pre-harvest) + Oct
   measured result. No code or model change. Gate: **288 tests passed**, mkdocs
   strict clean.
 
+- **2026-08-05 (late): optimal-stopping decision layer built and evaluated
+  (research, not promoted).** New module `vine.d2_irrigation.stopping` plus
+  runner `scripts/d2_stopping.py` and config
+  `configs/d2_irrigation/stopping.yaml`, borrowing from finance and
+  operational meteorology. Established with a controlled ablation on all five
+  probes: the first-passage closed form prices a *continuously* monitored
+  barrier while the label is scored on hourly readings (Broadie-Glasserman-Kou
+  discrete-monitoring bias, roughly 37 percent relative overstatement at 6 h,
+  pinned against Monte Carlo to 4 decimals), and the hourly increments are far
+  from Gaussian (excess kurtosis 324 to 1416, repaired with filtered
+  historical simulation to 26 to 32). The corrected empirical layer wins
+  Brier and log loss at 6 to 24 h; at 48 h the variants converge, so the
+  corrections matter exactly where the alert is actionable. Evaluation target
+  is a 0.3-unit drawdown event because any absolute barrier is degenerate on
+  this record (fixed 25.0: holdout base rates 0.61 to 1.00, documented in the
+  `_fixed` CSVs). Cost-loss economic value (new ADR-0010) shows the filtered
+  Bayes rule holding a positive value band at every horizon while the
+  incumbent goes sharply negative at moderate cost ratios (systematic
+  over-irrigation). Backward-induction exercise boundaries put the optimal
+  trigger only 0.02 to 0.13 units above the barrier at observed volatilities,
+  which is the quantitative reason threshold rules keep winning on this
+  plant; response delay is what would change that. Report
+  `docs/reports/2026-08-05-optimal-stopping.md`; tables
+  `docs/reports/assets/d2_stopping_*.csv`; 22 new tests including a
+  200k-path Monte Carlo pin of the crossing recursion.
+
 ## Open questions for mentor
 
 1. **Historical records** (harvest dates, yields, irrigation logs): do they exist,

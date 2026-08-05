@@ -72,5 +72,6 @@ nav:
       - D2 probabilistic CRPS forecasts (2026-08-05): reports/2026-08-05-crps-probabilistic.md
       - D2 rain-gated water balance (2026-08-05): reports/2026-08-05-gated-water-balance.md
       - Irrigation control policy review (2026-08-05): reports/2026-08-05-irrigation-control-review.md
+      - D2 optimal-stopping decision layer (2026-08-05): reports/2026-08-05-optimal-stopping.md
   - Roadmap: roadmap.md
   - Glossary: glossary.md

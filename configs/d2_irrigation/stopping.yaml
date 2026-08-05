@@ -1,0 +1,18 @@
+# Optimal-stopping decision layer over the persistence random walk (D2).
+#
+# Answers three questions the point-forecast ladder cannot: whether the
+# Gaussian first-passage layer prices the right barrier (hourly monitoring, not
+# continuous; filtered historical shape, not Normal), what the irrigation
+# trigger level should be given a cost-to-loss ratio, and what any of it is
+# worth to a grower under the cost-loss model.
+threshold: 25.0 # used only when barrier_mode is "fixed"
+barrier_mode: drawdown # "drawdown" is primary; "quantile" calibrates per probe; "fixed" uses `threshold`
+drawdown: 0.3 # drawdown mode: event is the level falling this far below its current value within h
+barrier_quantile: 0.20 # depletion level, as a quantile of first-fold training levels
+horizons_h: [6, 12, 24, 48]
+n_folds: 5
+sigma_halflife_h: 72.0 # EWMA halflife (in gap-free pairs) for volatility
+mu_halflife_h: 336.0 # slow EWMA halflife for drift
+min_pairs: 24 # gap-free pairs required before estimates exist
+n_drift_buckets: 24 # equal-count buckets of standardized drift per fold
+cost_ratios: [0.02, 0.05, 0.1, 0.2, 0.3, 0.5] # irrigation cost / stress loss
