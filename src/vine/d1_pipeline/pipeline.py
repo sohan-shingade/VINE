@@ -157,3 +157,68 @@ def add_lead_time_features(
             fwd_sum = shifted[::-1].rolling(window=h, min_periods=h).sum()[::-1]
             out[f"{stem}_next_{h}h"] = fwd_sum
     return out
+
+
+def add_vintage_lead_time_features(
+    frame: pd.DataFrame,
+    horizons_h: list[int],
+    vintages: pd.DataFrame,
+    cols: tuple[str, ...] = ("precip_mm", "et0_mm"),
+) -> pd.DataFrame:
+    """Fill the `{stem}_next_{h}h` columns from REAL archived forecast vintages.
+
+    Same output contract as `add_lead_time_features` — the value at row `s` is
+    the total expected over the open-closed window `(s, s+h]` — but sourced
+    from what a forecast actually said at decision time, not from realized
+    weather. `vintages` comes from `weather.fetch_forecast_vintages`: hourly
+    `{col}_prevN` columns where the value at hour τ covers `(τ-1h, τ]` as
+    predicted by the model run N days staler than the freshest archived run.
+
+    Causality: for horizon `h` we read lag `N = vintage_lag_days(h)` (lead
+    rounded UP to whole days), which guarantees every value in the window came
+    from a run issued at or before the decision time `s` (see that function's
+    docstring for the argument). Never a fresher lag.
+
+    Hours missing from `vintages` propagate as NaN through `min_periods=h` —
+    reduced coverage shows up as unscorable rows, never a silently short sum.
+
+    Args:
+        frame: hourly feature frame (regular grid, see `build_sensor_features`).
+        horizons_h: horizons (in grid rows = hours) to fill.
+        vintages: hourly frame with `{col}_prevN` columns for every needed lag.
+        cols: friendly daily-weather stems to fill lead-time features for.
+
+    Raises:
+        ValueError: when a needed `{col}_prevN` column is absent — refusing to
+            substitute a fresher (leaky) or staler-than-declared vintage.
+    """
+    from vine.d1_pipeline.weather import vintage_lag_days
+
+    # Reconcile timezones like attach_weather: sensor frames are tz-aware UTC,
+    # Open-Meteo returns tz-naive UTC timestamps.
+    v = vintages.copy()
+    ftz = getattr(frame.index, "tz", None)
+    vtz = getattr(v.index, "tz", None)
+    if ftz is not None and vtz is None:
+        v.index = v.index.tz_localize(ftz)
+    elif ftz is None and vtz is not None:
+        v.index = v.index.tz_localize(None)
+    elif ftz is not None and vtz is not None and str(ftz) != str(vtz):
+        v.index = v.index.tz_convert(ftz)
+    v = v.reindex(frame.index)  # hours absent from the vintages become NaN
+
+    out = frame.copy()
+    for col in cols:
+        stem = col.removesuffix("_mm")
+        for h in horizons_h:
+            lag = vintage_lag_days(h)
+            source = f"{col}_prev{lag}"
+            if source not in v.columns:
+                raise ValueError(f"vintages missing column {source!r} needed for horizon {h}h")
+            # Hourly value at τ covers (τ-1h, τ], so summing rows s+1 .. s+h
+            # covers exactly (s, s+h] — same forward-window trick as the
+            # oracle version, min_periods=h keeps partial windows NaN.
+            shifted = v[source].shift(-1)
+            fwd_sum = shifted[::-1].rolling(window=h, min_periods=h).sum()[::-1]
+            out[f"{stem}_next_{h}h"] = fwd_sum
+    return out

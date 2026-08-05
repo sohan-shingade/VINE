@@ -58,6 +58,7 @@ class Settings(BaseSettings):
     # Gridded to the vineyard coordinates (see ADR-0009).
     weather_archive_url: str = "https://archive-api.open-meteo.com/v1/archive"
     weather_forecast_url: str = "https://api.open-meteo.com/v1/forecast"
+    weather_previous_runs_url: str = "https://previous-runs-api.open-meteo.com/v1/forecast"
     vineyard_lat: float = 38.457  # Iron Horse Vineyards, Sebastopol CA
     vineyard_lon: float = -122.896
 

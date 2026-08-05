@@ -12,6 +12,7 @@ features: [soil_water, soil_temperature, soil_conductivity]
 horizons_h: [6, 12, 24, 48]
 n_folds: 5
 forecast_features: true
+weather_source: oracle  # realized future weather — upper bound; see water_balance_vintage.yaml
 wb_use_level: false
 wb_gate_precip_mm: 0.3  # only override persistence when rain is forecast over the window
 wb_robust: true  # Huber Δ-regression: storm outliers no longer make the fit overshoot

@@ -1,6 +1,7 @@
 """Sensor-path assembly tests — build_sensor_features + attach_weather."""
 
 import pandas as pd
+import pytest
 
 from vine.d1_pipeline import pipeline
 
@@ -74,6 +75,64 @@ def test_add_lead_time_features_sums_forward_and_names_columns():
     got = out["precip_next_2h"].tolist()
     assert got[:4] == expected
     assert pd.isna(got[4]) and pd.isna(got[5])  # window runs past the end of the frame
+
+
+def _vintage_frame_and_vintages(hours: int = 60):
+    idx = pd.date_range("2026-01-01", periods=hours, freq="1h", tz="UTC")
+    frame = pd.DataFrame({"soil_water": 30.0}, index=idx)
+    # Distinct constants per lag so the test can tell WHICH vintage was read.
+    vintages = pd.DataFrame(
+        {
+            "precip_mm_prev1": 1.0,
+            "precip_mm_prev2": 2.0,
+            "et0_mm_prev1": 0.1,
+            "et0_mm_prev2": 0.2,
+        },
+        index=idx.tz_localize(None),  # Open-Meteo timestamps are tz-naive UTC
+    )
+    return frame, vintages
+
+
+def test_add_vintage_lead_time_features_window_and_names():
+    frame, vintages = _vintage_frame_and_vintages()
+    out = pipeline.add_vintage_lead_time_features(frame, [6], vintages)
+    # h=6 -> lag 1 day: sum of 6 hourly prev1 values over (s, s+6]
+    assert out["precip_next_6h"].iloc[0] == pytest.approx(6 * 1.0)
+    assert out["et0_next_6h"].iloc[0] == pytest.approx(6 * 0.1)
+    # tail rows whose window runs off the end stay NaN, never a short sum
+    assert out["precip_next_6h"].iloc[-6:].isna().all()
+
+
+def test_add_vintage_lead_time_features_is_causal_at_48h():
+    # Causality: a vintage used at decision time t must come from a run issued
+    # at or before t. At h=48 only previous_day2 qualifies (24·2 ≥ 48); using
+    # previous_day1 would borrow a run issued up to a day AFTER decision time.
+    # Poison prev1 so any leaky read is loud.
+    frame, vintages = _vintage_frame_and_vintages()
+    vintages["precip_mm_prev1"] = 1e9
+    vintages["et0_mm_prev1"] = 1e9
+    out = pipeline.add_vintage_lead_time_features(frame, [48], vintages)
+    assert out["precip_next_48h"].iloc[0] == pytest.approx(48 * 2.0)  # prev2, not prev1
+    assert out["et0_next_48h"].iloc[0] == pytest.approx(48 * 0.2)
+
+
+def test_add_vintage_lead_time_features_missing_hours_stay_nan():
+    frame, vintages = _vintage_frame_and_vintages()
+    vintages.loc[vintages.index[8], "precip_mm_prev1"] = float("nan")
+    out = pipeline.add_vintage_lead_time_features(frame, [6], vintages)
+    # hour 8 covers (7, 8], so every (s, s+6] window with s in 2..7 contains it
+    assert out["precip_next_6h"].iloc[:2].notna().all()
+    assert out["precip_next_6h"].iloc[2:8].isna().all()
+    assert out["precip_next_6h"].iloc[8:10].notna().all()
+    assert out["et0_next_6h"].notna().iloc[2]  # other column unaffected
+
+
+def test_add_vintage_lead_time_features_refuses_missing_lag():
+    frame, vintages = _vintage_frame_and_vintages()
+    with pytest.raises(ValueError, match="precip_mm_prev2"):
+        pipeline.add_vintage_lead_time_features(
+            frame, [48], vintages.drop(columns="precip_mm_prev2")
+        )
 
 
 def test_attach_weather_reconciles_tz_aware_frame():

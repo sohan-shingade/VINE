@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import Literal
+
 from pydantic import BaseModel, Field
 
 
@@ -18,6 +20,10 @@ class IrrigationConfig(BaseModel):
     alpha: float = 1.0
     predict_delta: bool = False  # learn y(t) - y(t-h), reconstructed to level before scoring
     forecast_features: bool = False  # attach add_lead_time_features (perfect-forecast proxy)
+    # Where the `_next_{h}h` lead-time columns come from when forecast_features
+    # is on: "oracle" = realized future weather (perfect-forecast upper bound),
+    # "vintage" = real archived forecasts as issued (Open-Meteo previous runs).
+    weather_source: Literal["oracle", "vintage"] = "oracle"
     # Water-balance-only knobs.
     wb_use_level: bool = False  # add current moisture level as a 3rd feature
     wb_gate_precip_mm: float | None = None  # apply correction only when rain > this

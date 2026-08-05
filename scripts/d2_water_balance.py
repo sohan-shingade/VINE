@@ -1,9 +1,12 @@
-"""Evaluate the D2 water-balance upper bound across every soil probe.
+"""Evaluate the D2 water-balance model across every soil probe.
 
-Historical backtests use the labeled perfect-forecast weather proxy. Results are
-therefore an upper bound, not a claim about live forecast skill.
+Weather source is config-selectable: "oracle" backtests use the labeled
+perfect-forecast proxy (an upper bound, not a claim about live skill);
+"vintage" backtests use REAL archived forecasts as issued (Open-Meteo previous
+runs), snapshotted to data/raw/weather/ so the run reproduces offline.
 
     uv run python scripts/d2_water_balance.py configs/d2_irrigation/water_balance.yaml
+    uv run python scripts/d2_water_balance.py configs/d2_irrigation/water_balance_vintage.yaml
 """
 
 from __future__ import annotations
@@ -13,11 +16,37 @@ from pathlib import Path
 
 import pandas as pd
 
-from vine.common.config import load_config
+from vine.common.config import load_config, settings
 from vine.common.seed import seed_everything
 from vine.d2_irrigation.config import IrrigationConfig
 from vine.d2_irrigation.data import load_soil_probe_frames
 from vine.d2_irrigation.experiment import run_experiment
+
+
+def load_or_fetch_vintages(frames: dict[str, pd.DataFrame]) -> pd.DataFrame:
+    """Load the archived-forecast snapshot covering all probe frames, else fetch it.
+
+    The snapshot lands in data/raw/weather/ (DVC-tracked dir, never git) so the
+    vintage evaluation reproduces offline. Coverage gaps are reported, not filled.
+    """
+    from vine.d1_pipeline.weather import fetch_forecast_vintages
+
+    start = min(f.index.min() for f in frames.values()).strftime("%Y-%m-%d")
+    end = max(f.index.max() for f in frames.values()).strftime("%Y-%m-%d")
+    path = settings.data_dir / "raw" / "weather" / f"forecast_vintages_{start}_{end}.parquet"
+    if path.exists():
+        vintages = pd.read_parquet(path)
+        print(f"loaded vintage snapshot {path} ({len(vintages)} hourly rows)")
+    else:
+        vintages = fetch_forecast_vintages(start, end)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        vintages.to_parquet(path)
+        print(f"fetched + snapshotted vintages to {path} ({len(vintages)} hourly rows)")
+    missing = vintages.isna().sum()
+    if missing.any():
+        print("vintage coverage gaps (NaN hours per column, left as gaps):")
+        print(missing[missing > 0].to_string())
+    return vintages
 
 
 def main() -> int:
@@ -31,13 +60,15 @@ def main() -> int:
         raise ValueError("config model must be water_balance")
     seed = seed_everything()
     frames = load_soil_probe_frames()
+    vintages = load_or_fetch_vintages(frames) if cfg.weather_source == "vintage" else None
 
     tables = []
     for device, frame in frames.items():
         device_cfg = cfg.model_copy(update={"device": device})
-        result = run_experiment(frame, device_cfg)
+        result = run_experiment(frame, device_cfg, vintages=vintages)
         result.insert(0, "device", device)
         tables.append(result)
+        print(f"evaluated {device} ({cfg.weather_source})", flush=True)
     results = pd.concat(tables, ignore_index=True)
     print(results.to_string(index=False, float_format=lambda value: f"{value:.3f}"))
 
@@ -48,7 +79,7 @@ def main() -> int:
             print("\n(mlflow not installed — skipped logging)")
             return 0
         mlflow.set_experiment("d2_irrigation")
-        with mlflow.start_run(run_name="water-balance-all-sensors"):
+        with mlflow.start_run(run_name=f"water-balance-all-sensors-{cfg.weather_source}"):
             mlflow.log_params({**cfg.model_dump(), "seed": seed, "sensors": list(frames)})
             mlflow.log_text(results.to_csv(index=False), "water_balance_results.csv")
             wb = results[results.model == "water_balance"]

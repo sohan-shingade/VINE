@@ -1,0 +1,25 @@
+# The honest rerun of water_balance.yaml: identical model and evaluation, but
+# the `_next_{h}h` lead-time columns come from REAL archived forecast vintages
+# (Open-Meteo Previous Runs API) instead of realized future weather. For each
+# horizon h the vintage lag is ceil(h/24) days, rounded UP so every value in
+# the (t, t+h] window comes from a run issued at or before decision time t.
+# Ship gate (ADR-0003): positive worst-fold skill vs persistence on every probe.
+# Baseline: naive.yaml (persistence). Oracle comparison: water_balance.yaml.
+model: water_balance
+device: SE01-LS-1
+target: soil_water
+features: [soil_water, soil_temperature, soil_conductivity]
+horizons_h: [6, 12, 24, 48]
+n_folds: 5
+forecast_features: true
+weather_source: vintage
+wb_use_level: false
+wb_gate_precip_mm: 0.3
+wb_robust: true
+wb_adaptive_blend: true
+wb_val_frac: 0.25
+wb_blend_weights: [0.0, 0.2, 0.4, 0.6, 0.8, 1.0]
+wb_min_fit_rows: 20
+wb_min_val_rows: 10
+wb_huber_max_iter: 500
+irrigate_below: 25.0

@@ -172,3 +172,27 @@ def test_arima_e2e_smoke():
     results = run_experiment(frame, cfg)
     assert "arima" in set(results["model"])
     assert (results.loc[results["model"] == "arima", "n"] > 0).all()
+
+
+def test_vintage_weather_source_requires_and_uses_vintages():
+    """weather_source: vintage refuses to run without a vintages frame, and
+    with one it fills the `_next_{h}h` drivers from the archived forecasts
+    (a water_balance row appears with scorable rows)."""
+    frame = _daily_cycle_frame()
+    cfg = IrrigationConfig(
+        model="water_balance",
+        horizons_h=[6],
+        n_folds=3,
+        forecast_features=True,
+        weather_source="vintage",
+    )
+    with pytest.raises(ValueError, match="vintage"):
+        run_experiment(frame, cfg)
+
+    vintages = pd.DataFrame(
+        {"precip_mm_prev1": 0.2, "et0_mm_prev1": 0.1},
+        index=frame.index.tz_localize(None),
+    )
+    results = run_experiment(frame, cfg, vintages=vintages)
+    assert "water_balance" in set(results["model"])
+    assert (results["n"] > 0).all()

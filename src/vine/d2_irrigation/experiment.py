@@ -19,7 +19,7 @@ import numpy as np
 import pandas as pd
 
 from vine.common.logging import get_logger
-from vine.d1_pipeline.pipeline import add_lead_time_features
+from vine.d1_pipeline.pipeline import add_lead_time_features, add_vintage_lead_time_features
 from vine.d2_irrigation import baselines
 from vine.d2_irrigation.config import IrrigationConfig
 from vine.d2_irrigation.models import (
@@ -38,20 +38,30 @@ log = get_logger(__name__)
 # `vine.d1_pipeline.pipeline.add_lead_time_features`).
 
 
-def run_experiment(frame: pd.DataFrame, cfg: IrrigationConfig) -> pd.DataFrame:
+def run_experiment(
+    frame: pd.DataFrame, cfg: IrrigationConfig, vintages: pd.DataFrame | None = None
+) -> pd.DataFrame:
     """Evaluate the configured model + all baselines, walk-forward, per horizon.
 
     Args:
         frame: D1 feature frame on a regular hourly grid (see
             `build_sensor_features` / `attach_weather`), containing `cfg.target`.
         cfg: the experiment config (a run = config + seed).
+        vintages: hourly archived-forecast frame (`fetch_forecast_vintages`),
+            required when `cfg.weather_source == "vintage"` — the lead-time
+            columns are then real as-issued forecasts, not realized weather.
 
     Returns:
         Tidy frame: model, horizon_h, n, mae, rmse, skill_vs_persistence,
         precision, recall — sorted by horizon then MAE.
     """
     if cfg.forecast_features:
-        frame = add_lead_time_features(frame, cfg.horizons_h)
+        if cfg.weather_source == "vintage":
+            if vintages is None:
+                raise ValueError("weather_source 'vintage' requires a vintages frame")
+            frame = add_vintage_lead_time_features(frame, cfg.horizons_h, vintages)
+        else:
+            frame = add_lead_time_features(frame, cfg.horizons_h)
 
     y = frame[cfg.target]
     numeric = frame.select_dtypes("number")
