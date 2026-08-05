@@ -1,8 +1,8 @@
 # Deliverables map
 
-The repo is organized to follow the proposal's timeline. Every layer — code,
-configs, containers, deployment — is grouped by deliverable **D1 → D6**, so the
-folder list reads top-to-bottom like the proposal. Progress: see
+The repo is organized to follow the proposal's timeline. Every layer (code,
+configs, containers, deployment) is grouped by deliverable D1 → D6 and the
+folder list reads top to bottom like the proposal. Progress: see
 [`docs/STATE.md`](docs/STATE.md).
 
 | # | Deliverable | Code (`src/vine/`) | Configs | Container | Deploy (`k8s/`) | Status |
@@ -17,8 +17,8 @@ folder list reads top-to-bottom like the proposal. Progress: see
 
 Cross-cutting (not a deliverable): `src/vine/common/` (config, logging, seeding).
 
-**Timeline** (proposal): D1 weeks 3–5 → D2 weeks 5–7 → D3 weeks 7–9 →
-D4+D5 weeks 9–10 → D6 weeks 11–12 → D7 weeks 12–13. Full schedule:
+**Timeline** (proposal): D1 weeks 3 to 5 → D2 weeks 5 to 7 → D3 weeks 7 to 9 →
+D4+D5 weeks 9 to 10 → D6 weeks 11 to 12 → D7 weeks 12 to 13. Full schedule:
 [`docs/roadmap.md`](docs/roadmap.md).
 
 ## Extras map (install only what a deliverable needs)

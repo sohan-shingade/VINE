@@ -1,21 +1,21 @@
-# 2026-05-25 — Project setup & scaffolding
+# 2026-05-25: Project setup & scaffolding
 
-*Phase: Community Bonding (Weeks 1–3). Light schedule — UCSD finals run through
+*Phase: Community Bonding (Weeks 1 to 3). Light schedule: UCSD finals run through
 ~June 7.*
 
 ## What I built
 The skeleton everything else hangs off:
 
-- **Repo structure** — single `vine` package, `src/` layout, one subpackage per
-  deliverable (D1–D6), plus `configs/`, `docker/`, `k8s/`, and this wiki.
-- **D1 pipeline core** — vegetation indices (NDVI/NDRE) as pure, tested
+- **Repo structure**: single `vine` package, `src/` layout, one subpackage per
+  deliverable (D1 to D6), plus `configs/`, `docker/`, `k8s/`, and this wiki.
+- **D1 pipeline core**: vegetation indices (NDVI/NDRE) as pure, tested
   functions, plus the interfaces for sensor reading, imagery tiling, block
   alignment, feature engineering, and data validation.
-- **Tooling** — `uv` for envs/deps, `ruff` + `mypy` + `pytest` behind a single
-  `make check` gate, pre-commit hooks, and GitLab CI mirroring that gate.
-- **Reproducibility plumbing** — typed config loading, structured logging, and
+- **Tooling**: `uv` for envs/deps, `ruff` + `mypy` + `pytest` behind a single
+  `make check` gate, pre-commit hooks, and GitLab CI that mirrors that gate.
+- **Reproducibility plumbing**: typed config loading, structured logging, and
   `seed_everything()`.
-- **Claude Code setup** — `CLAUDE.md`, slash commands (`/new-experiment`,
+- **Claude Code setup**: `CLAUDE.md`, slash commands (`/new-experiment`,
   `/devlog`, `/adr`, `/model-card`), and subagents (geospatial, eval-reviewer,
   NRP deploy).
 
@@ -25,7 +25,7 @@ Recorded the foundational five as ADRs: monorepo `src/` layout (0001), `uv`
 (0004), MLflow+DVC (0005).
 
 ## Results
-No models yet — this phase is setup. `make check` passes on a clean checkout.
+No models yet; this phase is setup. `make check` passes on a clean checkout.
 
 ## Blockers / questions for mentor
 - Exact sensor schema, units, sampling interval?

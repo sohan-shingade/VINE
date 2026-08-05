@@ -3,15 +3,15 @@
 ## Prerequisites
 
 - Python 3.11 (`.python-version` pins it)
-- [`uv`](https://docs.astral.sh/uv/) — install: `curl -LsSf https://astral.sh/uv/install.sh | sh`
-- For the geospatial pipeline, GDAL is pulled in via `rasterio` wheels (no system GDAL needed on most platforms).
+- [`uv`](https://docs.astral.sh/uv/). Install it with `curl -LsSf https://astral.sh/uv/install.sh | sh`
+- For the geospatial pipeline, the `rasterio` wheels bring GDAL with them, so most platforms do not need a system GDAL.
 
 ## Setup
 
 ```bash
 git clone <repo-url> vine && cd vine
 make setup        # creates .venv, installs all extras, installs pre-commit hooks
-make check        # lint + type + test — should pass on a clean checkout
+make check        # lint + type + test; should pass on a clean checkout
 ```
 
 `make setup` runs `uv sync --all-extras`. To install only one track's deps:
@@ -34,7 +34,7 @@ uv sync --extra cv --extra serve  # D3 + serving
 
 ## Running an experiment
 
-Every run is driven by a YAML config so it's reproducible from config + seed:
+A YAML config drives every run, so config + seed are enough to reproduce it:
 
 ```bash
 uv run vine train irrigation configs/d2_irrigation/lstm.yaml
@@ -45,11 +45,11 @@ existing one.
 
 ## Data
 
-`data/` and `models/` are **gitignored** and versioned with DVC, not git.
+`data/` and `models/` are gitignored and versioned with DVC rather than git.
 On NRP they map to Ceph-backed persistent volumes. See the
 [datasheet](../data/index.md) for what the data is and how it's organized.
 
-DVC is a standalone CLI (not a project dependency — see
+DVC is a standalone CLI, not a project dependency (see
 [ADR-0005](../adr/0005-experiment-tracking.md)). Install it once:
 
 ```bash
@@ -59,7 +59,7 @@ uv tool install "dvc[s3]"   # or pipx install "dvc[s3]"
 ## NRP / GPU
 
 Model training runs interactively on NRP GPU pods (A100 / L40 / RTX A6000) via
-JupyterHub or `kubectl`. GitLab CI only lints and runs fast tests — it never
+JupyterHub or `kubectl`. GitLab CI only lints and runs fast tests. It never
 trains. Deployment manifests live in `k8s/`. Full service mapping:
 [Infrastructure](../infrastructure.md).
 
@@ -86,5 +86,5 @@ datasets = ndp.list_org_datasets()      # Iron Horse Vineyards datasets
 ndp.download_resource(url, "data/raw/sensors.csv")
 ```
 
-Then `dvc add data/raw/...` to pin the snapshot. Confirm the exact NDP API path
-and whether an API key is needed with the mentor.
+Then `dvc add data/raw/...` to pin the snapshot. Confirm with the mentor which
+NDP API path is correct and whether an API key is needed.

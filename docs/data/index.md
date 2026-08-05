@@ -1,19 +1,20 @@
 # Data datasheet
 
 Following the [*Datasheets for Datasets*](https://arxiv.org/abs/1803.09010)
-(Gebru et al.) structure. Many fields are **TBD — confirm with mentor during
-community bonding**; the proposal notes the data pipeline may be partially built.
+(Gebru et al.) structure. Many fields are still **TBD**: confirm them with the
+mentor during community bonding. The proposal notes the data pipeline may be
+partially built.
 
 ## Motivation
 - **Purpose:** train ML models for irrigation scheduling, plant-health
   assessment, and harvest timing at Iron Horse Vineyards.
 - **Created by / for:** CENIC, UC San Diego, and partners; the VINE project.
-- **Where it lives:** the **live source is InfluxDB** (sensors → ThingsBoard →
+- **Where it lives:** the live source is InfluxDB (sensors → ThingsBoard →
   InfluxDB bucket `ihv`), pulled with `vine.d1_pipeline.InfluxReader`, landed in
   `data/raw/`, and pinned with DVC ([ADR-0008](../adr/0008-sensor-source-influxdb.md)).
   The [National Data Platform](https://nationaldataplatform.org) is the intended
-  *publishing* layer for shareable exports — its catalog API is **not yet
-  confirmed** ([ADR-0006](../adr/0006-ndp-data-access.md)), so don't treat it as
+  *publishing* layer for shareable exports. Its catalog API is not yet
+  confirmed ([ADR-0006](../adr/0006-ndp-data-access.md)), so don't treat it as
   the live source.
 
 ## Composition
@@ -25,9 +26,9 @@ community bonding**; the proposal notes the data pipeline may be partially built
 | Historical records | CSV (TBD) | past harvest dates, yields, irrigation schedules | multi-year | per vineyard block |
 | Weather (historical + forecast) | API (JSON) | tmax/tmin, precip, ET₀, GDD inputs | daily | vineyard lat/lon (38.457, −122.896) |
 
-**Sources located (2026-06-16):** sensors → InfluxDB ✅; imagery → NextCloud +
-STAC ✅ (9,295 DJI M3M captures, 11 flights Aug 2025–Jan 2026, RGB + green/red/
-rededge/nir); weather → **Open-Meteo archive** ✅ (ET₀ included) /
+**Sources located (2026-06-16):** sensors in InfluxDB; imagery on NextCloud +
+STAC (9,295 DJI M3M captures, 11 flights Aug 2025 to Jan 2026, RGB + green/red/
+rededge/nir); weather from the Open-Meteo archive (ET₀ included) or
 [gridMET](https://www.drought.gov/data-maps-tools/gridded-surface-meteorological-gridmet-dataset),
 forecast via Open-Meteo/python-awips ([ADR-0009](../adr/0009-weather-data-sources.md)).
 **Fresh record search (2026-07-23):** no harvest dates, yield, Brix, pH/TA,
@@ -61,7 +62,7 @@ cumulative GDD (`vine.d1_pipeline.features`).
 - **Gaps & noise:** sensor failures and connectivity drops. The pipeline flags
   gaps explicitly and never silently imputes (`vine.d1_pipeline.validation`).
 - **Imagery cadence** depends on weather and flight scheduling.
-- **Harvest labels are sparse** (≈1 per block per year) — multi-year history is
+- **Harvest labels are sparse** (≈1 per block per year), so multi-year history is
   essential; D4 may be scoped to exploratory analysis if insufficient.
 
 ## Reproducible profile
@@ -73,8 +74,8 @@ with deployed points, and the metadata-only imagery inventory without network
 access.
 
 ## Storage & access
-- Stored on NRP Ceph-backed volumes; **not committed to git** — versioned with
-  DVC. Folders: `data/raw` → `data/interim` → `data/processed`.
+- Stored on NRP Ceph-backed volumes and versioned with DVC, not committed to
+  git. Folders: `data/raw` → `data/interim` → `data/processed`.
 
 ## Open questions for mentor
 - Exact sensor schema, units, and sampling interval?

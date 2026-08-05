@@ -11,9 +11,9 @@ What forces are at play? What problem are we deciding about? Keep it factual.
 What we chose, stated plainly.
 
 ## Considered options
-- **Option A** — pros / cons
-- **Option B** — pros / cons
-- **Option C** — pros / cons
+- **Option A**: pros / cons
+- **Option B**: pros / cons
+- **Option C**: pros / cons
 
 ## Consequences
 - **Good:** what this makes easier.

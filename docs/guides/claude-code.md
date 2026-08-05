@@ -8,7 +8,7 @@ This repo is set up for [Claude Code](https://code.claude.com). The agent reads
 
 | Thing | Where | Purpose |
 |-------|-------|---------|
-| Project memory | `CLAUDE.md` (+ `AGENTS.md` symlink) | Stack, commands, rules, gotchas — loaded every session |
+| Project memory | `CLAUDE.md` (+ `AGENTS.md` symlink) | Stack, commands, rules, gotchas; loaded every session |
 | Personal notes | `CLAUDE.local.md` (gitignored) | Your own machine-specific notes |
 | Permissions | `.claude/settings.json` | Pre-approves safe commands (make, uv, ruff, pytest…) |
 | Auto-format hook | `.claude/hooks/ruff-format.sh` | Formats every Python file Claude edits (deterministic) |
@@ -17,14 +17,14 @@ This repo is set up for [Claude Code](https://code.claude.com). The agent reads
 
 ## Recommended workflow
 
-1. **Plan mode** for anything non-trivial — let Claude read the relevant files
+1. **Plan mode** for anything non-trivial. Let Claude read the relevant files
    and produce a plan before it edits.
 2. Delegate domain work to the subagents (e.g. "use the geospatial-data agent to
    add zonal stats to vine.d1_pipeline.geo").
 3. After training a model, run the `eval-reviewer` agent to independently check
    for leakage and honest baselines before you believe the numbers.
 4. Use `/devlog` every two weeks to draft the GSoC blog post.
-5. Keep `CLAUDE.md` lean — if Claude ignores a rule, the file is probably too
+5. Keep `CLAUDE.md` lean. If Claude ignores a rule, the file is probably too
    long; prune it or convert the rule into a hook.
 
 ## House rules the agent follows

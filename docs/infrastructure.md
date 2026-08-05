@@ -1,10 +1,10 @@
 # Infrastructure: NRP.ai & the National Data Platform
 
-VINE runs entirely on **[NRP.ai](https://nrp.ai)** (National Research Platform /
-Nautilus) — a free, NSF/DOE/DoD-funded, multi-tenant Kubernetes platform with
+VINE runs entirely on [NRP.ai](https://nrp.ai) (National Research Platform /
+Nautilus), a free, NSF/DOE/DoD-funded, multi-tenant Kubernetes platform with
 400+ nodes across 70+ sites, led by UC San Diego. Data comes from the
-**[National Data Platform](https://nationaldataplatform.org)** (NDP). No external
-cloud, no hardware cost. Full mapping in
+[National Data Platform](https://nationaldataplatform.org) (NDP). The project
+uses no external cloud and has no hardware cost. Full mapping in
 [ADR-0006](adr/0006-ndp-data-access.md) and [ADR-0007](adr/0007-nrp-infrastructure.md).
 
 ## VINE is four sibling subprojects
@@ -31,8 +31,8 @@ Related GitLab groups: `gitlab.nrp-nautilus.io/ihv` (Iron Horse Vineyards),
   token-gated). Pulled with `vine.d1_pipeline.InfluxReader`; see
   [ADR-0008](adr/0008-sensor-source-influxdb.md). Config: `VINE_INFLUX_*`.
 - **National Data Platform (NDP)** = intended *publishing* layer for open,
-  shareable exports. Its public site lists an Iron Horse org but does **not**
-  expose a working CKAN API yet — `vine.d1_pipeline.NDPClient` is a placeholder pending
+  shareable exports. Its public site lists an Iron Horse org but does not
+  expose a working CKAN API yet, so `vine.d1_pipeline.NDPClient` is a placeholder pending
   mentor confirmation ([ADR-0006](adr/0006-ndp-data-access.md)).
 - Either way, raw pulls are snapshotted to `data/raw/` and pinned with DVC so a
   model's exact data version is recorded.
@@ -54,10 +54,10 @@ Dashboards: [grafana.nrp-nautilus.io](https://grafana.nrp-nautilus.io) ·
 
 ## Managed LLM (optional)
 
-NRP hosts an **OpenAI-compatible** LLM endpoint at
+NRP hosts an OpenAI-compatible LLM endpoint at
 `https://ellm.nrp-nautilus.io/v1` (token from portal `/llmtoken/`), with models
-like `qwen3` and `qwen3-embedding`, plus a Milvus vector DB. **Not required by
-any core model track** — available if we add natural-language block-health
+like `qwen3` and `qwen3-embedding`, plus a Milvus vector DB. No core model track
+requires it. It is available if we add natural-language block-health
 summaries or semantic search over field notes for the dashboard. Config:
 `VINE_NRP_LLM_BASE_URL`, `VINE_NRP_LLM_API_KEY`.
 
@@ -67,4 +67,4 @@ summaries or semantic search over field notes for the dashboard. Config:
 2. Portal `/s3token/` → set `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY`.
 3. `uv tool install "dvc[s3]"` and point the DVC remote at the S3 bucket.
 4. (Optional) Portal `/llmtoken/` → set `VINE_NRP_LLM_API_KEY`.
-5. Confirm exact namespace, storage classes, and NDP API auth **with the mentor**.
+5. Confirm exact namespace, storage classes, and NDP API auth with the mentor.

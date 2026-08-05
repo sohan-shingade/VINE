@@ -27,7 +27,7 @@ No labels and no learned parameters are used. The implementation reads pre-compu
 
 ## Limitations & caveats
 
-- Low NDVI/NDRE can reflect phenology, soil/background, shadows, pruning, irrigation, calibration, or processing—not necessarily plant stress.
+- Low NDVI/NDRE can reflect phenology, soil/background, shadows, pruning, irrigation, calibration, or processing, not necessarily plant stress.
 - August 2025 H-block imagery and June 2026 whole-vineyard imagery differ by season, year, and coverage. Temporal deltas are exploratory and confounded unless restricted to matched footprints/acquisition conditions.
 - Thresholds and index weights are screening choices, not learned or vineyard-validated disease boundaries.
 - No labeled stress/pest imagery is currently available; supervised accuracy must not be claimed.

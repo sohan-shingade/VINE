@@ -6,7 +6,7 @@
 
 ## Context
 All compute and storage runs on the [National Research Platform](https://nrp.ai)
-(NRP/Nautilus) — a free, multi-tenant Kubernetes platform. We need to map each
+(NRP/Nautilus), a free, multi-tenant Kubernetes platform. We need to map each
 VINE need to a concrete NRP service so deployment and storage choices aren't
 ad hoc.
 
@@ -26,9 +26,9 @@ Use these NRP services:
 | LLM (optional, e.g. NL block-health summaries) | Managed LLM | OpenAI-compatible `https://ellm.nrp-nautilus.io/v1`, token `/llmtoken/` |
 
 ## Considered options
-- **NRP-native services (chosen)** — free, already provisioned for the org,
+- **NRP-native services (chosen)**: free, already provisioned for the org,
   keeps data on-platform, no external accounts.
-- **External cloud (AWS/GCP)** — familiar, but costs money, moves data off NRP,
+- **External cloud (AWS/GCP)**: familiar, but costs money, moves data off NRP,
   and isn't what the project/mentor supports.
 
 ## Consequences
@@ -37,5 +37,5 @@ Use these NRP services:
   checkpoints).
 - **Bad:** tied to NRP conventions and fair-use limits (GPU reservations, LLM
   concurrency caps); exact namespace, storage classes, and quotas must be
-  **confirmed with the mentor**. The managed LLM is optional — not required by
+  confirmed with the mentor. The managed LLM is optional and is not required by
   any of the three core model tracks.

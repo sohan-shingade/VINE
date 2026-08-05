@@ -233,7 +233,7 @@ def build_d3_assets() -> pd.DataFrame:
         plt.Rectangle((0, 0), 1, 1, color=RED, label="index disagreement flagged"),
     ]
     ax.legend(handles=handles, loc="lower right", fontsize=7.5)
-    ax.set_title("Top 15 screening candidates for field review — 2026-06-01")
+    ax.set_title("Top 15 screening candidates for field review, 2026-06-01")
     _save(fig, "d3_top_ranked")
     return result
 
@@ -425,7 +425,7 @@ influenced accepted-block percentiles. Both are fixed and covered by regression 
 against the real rasters with the corrected implementation; the superseded numbers (a 30/9
 coverage split) are in git history and are not evidence.
 
-The per-block distributions themselves did not move — identical pixel counts and quantiles —
+The per-block distributions themselves did not move. Pixel counts and quantiles are identical,
 because only the quality denominator was wrong. What changed is which blocks pass the gate.
 
 ## Reproduction
@@ -452,7 +452,7 @@ the fraction of **polygon-interior** pixels that are valid after nodata handling
 The highest-concern blocks are {top_names}. This is a review queue, not a diagnosis.
 {disagreement_count} of {len(ranked)} ranked blocks carry the NDVI/NDRE rank-disagreement
 flag, meaning the two indices disagree about the block's relative standing by more than the
-configured margin — inspect those with extra care.
+configured margin. Inspect those with extra care.
 
 {_markdown_table(top, {"rank": "{:.0f}", "score": "{:.3f}", "ndvi_coverage": "{:.3f}", "ndre_coverage": "{:.3f}", "ndvi_q50": "{:.3f}", "ndre_q50": "{:.3f}"})}
 
@@ -553,7 +553,7 @@ uv run python scripts/generate_reports.py
   at each boundary.
 - **Oracle-weather limit:** all three challengers use `forecast_features: true`. Their lead-time
   weather comes from realized future weather, not archived forecast vintages. Results here are
-  perfect-weather upper bounds. Water balance has since been rerun on real archived forecasts —
+  perfect-weather upper bounds. Water balance has since been rerun on real archived forecasts;
   see [D2 vintage validation](2026-08-04-d2-vintage-validation.md) and the section below.
 - **Micro-average limit:** pooled `ALL` skill is a row-weighted micro-average of correlated
   probe-hours sharing timestamps and weather. It is not five independent replications.
@@ -584,7 +584,7 @@ with lead-time weather drawn from archived Open-Meteo forecast runs as issued, a
 - The 48-hour aggregate edge survives real forecasts (+5.3% to +13.5% across the five probes,
   against +3.5% to +11.2% under the oracle), so it is not an oracle artifact.
 - 24-hour skill flips negative on every probe (−2.8% to −8.1%) with worst folds from −0.510 to
-  −2.448 — at −2.448 the corrected forecast's MAE is 3.4× persistence's in that fold. The
+  −2.448. At −2.448 the corrected forecast's MAE is 3.4× persistence's in that fold. The
   correction trusts day-1 forecast rain that did not arrive on the forecast hours.
 - Worst-fold skill stays negative in every cell where the correction is ever active; the four
   exactly-zero 6/12-hour cells are ones where it never fires and the forecast equals

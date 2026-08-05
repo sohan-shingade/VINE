@@ -65,14 +65,14 @@ and evaluation are written once.
 1. **One pipeline, three tracks.** Shared feature engineering lives in
    `vine.d1_pipeline`; tracks never re-implement ingestion.
 2. **Climb the complexity ladder.** Every track starts with a naive baseline,
-   then classical, then deep learning — each compared against the rung below.
+   then classical, then deep learning, each compared against the rung below.
    Nothing ships without beating its baseline ([ADR-0003](adr/0003-track-priority.md)).
 3. **Reproducible by construction.** A run = config + seed. Params and metrics
    go to MLflow; data and models are versioned with DVC
    ([ADR-0005](adr/0005-experiment-tracking.md)).
 4. **Pure core, I/O at the edges.** Math (indices, metrics, features) is pure
    and unit-tested; heavy libs (torch, rasterio) are imported lazily.
-5. **Minimal and readable** (Karpathy aesthetic) — code reads like a tutorial;
+5. **Minimal and readable** (Karpathy aesthetic): code reads like a tutorial;
    few dependencies, each justified.
 
 ## Data flow contracts
@@ -81,7 +81,7 @@ and evaluation are written once.
   with explicit gap flags (never silent imputation).
 - **Imagery** → 7-channel patches `[R, G, B, NIR, RedEdge, NDVI, NDRE]` aligned
   to vineyard-block polygons.
-- **Predictions** → always reported **per vineyard block**, with confidence
+- **Predictions** → always reported per vineyard block, with confidence
   where the model supports it, exposed over the REST API.
 
 ## Priority & scope

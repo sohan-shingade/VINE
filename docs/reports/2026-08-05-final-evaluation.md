@@ -28,7 +28,7 @@ uv run python scripts/generate_reports.py
   at each boundary.
 - **Oracle-weather limit:** all three challengers use `forecast_features: true`. Their lead-time
   weather comes from realized future weather, not archived forecast vintages. Results here are
-  perfect-weather upper bounds. Water balance has since been rerun on real archived forecasts —
+  perfect-weather upper bounds. Water balance has since been rerun on real archived forecasts;
   see [D2 vintage validation](2026-08-04-d2-vintage-validation.md) and the section below.
 - **Micro-average limit:** pooled `ALL` skill is a row-weighted micro-average of correlated
   probe-hours sharing timestamps and weather. It is not five independent replications.
@@ -65,7 +65,7 @@ with lead-time weather drawn from archived Open-Meteo forecast runs as issued, a
 - The 48-hour aggregate edge survives real forecasts (+5.3% to +13.5% across the five probes,
   against +3.5% to +11.2% under the oracle), so it is not an oracle artifact.
 - 24-hour skill flips negative on every probe (−2.8% to −8.1%) with worst folds from −0.510 to
-  −2.448 — at −2.448 the corrected forecast's MAE is 3.4× persistence's in that fold. The
+  −2.448. At −2.448 the corrected forecast's MAE is 3.4× persistence's in that fold. The
   correction trusts day-1 forecast rain that did not arrive on the forecast hours.
 - Worst-fold skill stays negative in every cell where the correction is ever active; the four
   exactly-zero 6/12-hour cells are ones where it never fires and the forecast equals

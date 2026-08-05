@@ -1,7 +1,7 @@
 # D2 report: water balance on real archived forecast vintages
 
 **Deliverable:** D2 irrigation · **Date:** 2026-08-05 · **Status:** validation
-complete — **not promoted; persistence remains served**
+complete. **Not promoted; persistence remains served.**
 
 The water-balance weather correction previously showed +3.5…+11.2% aggregate
 48 h skill across all five soil probes, but that backtest fed the model
@@ -27,13 +27,13 @@ and records the promotion decision against the ADR-0003 gate.
   either lag) and snapshotted to
   `data/raw/weather/forecast_vintages_2026-01-22_2026-07-08.parquet`
   (DVC-managed dir, not in git) so the run reproduces offline. Scorable rows
-  (n ≈ 1,335–1,367 per horizon) are unchanged from the oracle run; the three
+  (n ≈ 1,335 to 1,367 per horizon) are unchanged from the oracle run; the three
   shared sensor outages remain masked, never imputed.
 - **Runs:** MLflow experiment `d2_irrigation`, runs
   `water-balance-all-sensors-vintage` and `water-balance-all-sensors-oracle`
   (2026-08-05). The fresh oracle run reproduces the 2026-07-23 numbers exactly.
 
-## Results — aggregate skill vs persistence (%, MAE; positive = better)
+## Results: aggregate skill vs persistence (%, MAE; positive = better)
 
 | Probe | 6 h O | 6 h V | 12 h O | 12 h V | 24 h O | 24 h V | 48 h O | 48 h V |
 |---|---|---|---|---|---|---|---|---|
@@ -45,7 +45,7 @@ and records the promotion decision against the ADR-0003 gate.
 
 O = oracle (realized weather), V = vintage (real archived forecasts).
 
-## Results — worst-fold skill vs persistence (the ship gate)
+## Results: worst-fold skill vs persistence (the ship gate)
 
 | Probe | 6 h O | 6 h V | 12 h O | 12 h V | 24 h O | 24 h V | 48 h O | 48 h V |
 |---|---|---|---|---|---|---|---|---|
@@ -57,17 +57,16 @@ O = oracle (realized weather), V = vintage (real archived forecasts).
 
 ## Honest read
 
-- The 48 h aggregate edge **survives real forecasts**: +5.3…+13.5% across all
-  five probes (vs +3.5…+11.2% under the oracle). The physical signal — rain
-  arrives, ET removes water — is real and 2-day-ahead forecasts carry enough
-  of it. The zeros at 6–12 h are mostly the adaptive blend correctly
+- The 48 h aggregate edge survives real forecasts: +5.3…+13.5% across all
+  five probes (vs +3.5…+11.2% under the oracle). The physical signal is real
+  (rain arrives, ET removes water) and 2-day-ahead forecasts carry enough of
+  it. The zeros at 6 to 12 h are mostly the adaptive blend correctly
   collapsing to persistence.
 - **Real forecasts make 24 h clearly worse than the oracle**: aggregate skill
   is negative on every probe (−2.8…−8.1%) and worst folds span −0.51…−2.45
   (at −2.45 the corrected forecast's MAE is 3.4× persistence's in that fold).
-  At this horizon the model
-  trusts day-1 forecast precipitation that the realized weather did not
-  deliver on the hours forecast.
+  At this horizon the model trusts day-1 forecast precipitation that the
+  realized weather did not deliver on the hours forecast.
 - **The gate fails.** Worst-fold skill is negative on every probe at 48 h
   (−0.0003 on SE01-LS-3 at best, −0.60 on SE01-LS-1 at worst) and at every
   other horizon with any active correction. A model that loses to "do nothing"
@@ -87,7 +86,7 @@ it on all five probes at every horizon, and at 24 h it is worse than
 persistence even in aggregate. The vintage run does establish two things: the
 48 h aggregate improvement is not an oracle artifact, and the failure mode is
 concentrated in fold-level forecast busts rather than a broken mechanism. That
-makes the remaining research question sharp — per-fold robustness (e.g.
-forecast-uncertainty-aware gating) — but until a variant clears the worst-fold
+narrows the remaining research question to per-fold robustness (e.g.
+forecast-uncertainty-aware gating). Until a variant clears the worst-fold
 gate on vintage weather, the D6 service correctly keeps serving persistence +
 threshold.

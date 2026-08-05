@@ -17,10 +17,10 @@ also need to avoid shipping complex models that don't actually beat simple ones.
    data, with quantitative evidence.
 
 ## Considered options
-- **Sequential, baseline-gated (chosen)** — guarantees a working, evaluated
+- **Sequential, baseline-gated (chosen)**: guarantees a working, evaluated
   deliverable at each phase; protects against scope blowout.
-- **Parallel all three** — more breadth early but high risk none finishes well.
-- **Skip baselines, go straight to deep learning** — faster to a demo, but no
+- **Parallel all three**: more breadth early but high risk none finishes well.
+- **Skip baselines, go straight to deep learning**: faster to a demo, but no
   way to know if complexity is justified; brittle.
 
 ## Consequences
@@ -29,11 +29,11 @@ also need to avoid shipping complex models that don't actually beat simple ones.
 - **Bad:** CV (the flashiest track) starts later; baseline work feels
   unglamorous but is non-negotiable.
 
-## Evidence log — the gate in action (D2)
-The baseline-first gate has now rejected **eight** model families for D2
+## Evidence log: the gate in action (D2)
+The baseline-first gate has now rejected eight model families for D2
 irrigation, all evaluated walk-forward against per-sensor persistence:
 ridge, ridge+forecast, ridge-Δ, ARIMA, random forest, gradient-boosted trees,
-a drydown rule — and (2026-07-09) a **globally-pooled cross-sensor model**
+a drydown rule, and (2026-07-09) a globally-pooled cross-sensor model
 (`vine.d2_irrigation.pooled`, run via `scripts/d2_pooled.py`). The pooled rung
 was the literature-motivated one: M4/M5 and Elsayed et al. (2021) attribute
 ML's baseline-beating to cross-learning across related series, and IHV has five
@@ -51,8 +51,8 @@ positive long-horizon cells are oracle-assisted upper bounds; `ALL` is a
 row-weighted micro-average of correlated sensor-hours, not independent fleet
 replication. Pooled ridge loses fleet-wide at every horizon. Alert prevalence
 is high enough that precision/recall alone cannot establish transition-detection
-value. The same session completed a constrained **water-balance weather
-correction**. After an adversarial review found and fixed the shared
+value. The same session completed a constrained water-balance weather
+correction. After an adversarial review found and fixed the shared
 fold-boundary label leak, its oracle-weather 48 h skill was positive across
 five probes (+3.5…+11.2%) but every probe still had a negative worst fold
 (−9.7…−34.1%) and LS-4 recall slipped 0.912→0.908. Water balance therefore

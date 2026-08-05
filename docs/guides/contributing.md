@@ -9,14 +9,14 @@ Conventions below keep it reproducible and reviewable.
    `irrigation/d2-lstm-encoder`).
 2. **Explore → plan → implement.** For anything touching more than one file,
    write the plan first.
-3. Work in small, shippable slices — each should end with something testable.
+3. Work in small, shippable slices. Each one should end with something testable.
 4. `make check` must pass locally before you push (CI runs the same gate).
 5. Open an MR/PR with: what changed, results vs baseline (if a model),
    and links to any ADRs.
 
 ## Definition of done for a model
 
-- Compared against the track's naive + rule-based baselines on **held-out**
+- Compared against the track's naive + rule-based baselines on held-out
   data (walk-forward for time series).
 - Params + metrics logged to MLflow; run reproducible from config + seed.
 - A [model card](../models/index.md) created or updated.
@@ -25,7 +25,7 @@ Conventions below keep it reproducible and reviewable.
 ## Decisions
 
 Architectural/tooling choices are recorded as [ADRs](../adr/index.md). Changing
-one? Add a new ADR (or supersede an old one) — use the `/adr` command.
+one? Add a new ADR (or supersede an old one) with the `/adr` command.
 
 ## Communication (GSoC)
 
@@ -35,6 +35,6 @@ one? Add a new ADR (or supersede an old one) — use the `/adr` command.
 
 ## Code style
 
-See [CLAUDE.md](https://gitlab.nrp-nautilus.io/) in the repo root — the short
+See [CLAUDE.md](https://gitlab.nrp-nautilus.io/) in the repo root. The short
 version: minimal, readable, tutorial-like; pure functions for math; lazy imports
 for heavy libs; type hints + Google-style docstrings; ruff line length 100.

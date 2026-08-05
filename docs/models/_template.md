@@ -1,7 +1,7 @@
 # Model card: <track>/<model>
 
 > Copy this file to `docs/models/<track>/<model>.md` (or via `/model-card`).
-> Fill every field from the actual run. Unknown → "TBD — pending run", never
+> Fill every field from the actual run. Unknown → "TBD, pending run", never
 > invent numbers.
 
 ## Model details
@@ -23,7 +23,7 @@
 
 ## Evaluation
 - **Metrics:** e.g. MAE/RMSE on moisture; precision/recall on irrigation trigger.
-- **Baselines beaten:** naive persistence, threshold rule — by how much.
+- **Baselines beaten:** naive persistence, threshold rule. State by how much.
 - **Protocol:** held-out period (e.g. train spring, validate summer).
 
 ## Limitations & caveats

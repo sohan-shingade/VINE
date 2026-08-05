@@ -21,7 +21,7 @@ influenced accepted-block percentiles. Both are fixed and covered by regression 
 against the real rasters with the corrected implementation; the superseded numbers (a 30/9
 coverage split) are in git history and are not evidence.
 
-The per-block distributions themselves did not move — identical pixel counts and quantiles —
+The per-block distributions themselves did not move. Pixel counts and quantiles are identical,
 because only the quality denominator was wrong. What changed is which blocks pass the gate.
 
 ## Reproduction
@@ -48,7 +48,7 @@ the fraction of **polygon-interior** pixels that are valid after nodata handling
 The highest-concern blocks are H6, L, J1, J2. This is a review queue, not a diagnosis.
 11 of 39 ranked blocks carry the NDVI/NDRE rank-disagreement
 flag, meaning the two indices disagree about the block's relative standing by more than the
-configured margin — inspect those with extra care.
+configured margin. Inspect those with extra care.
 
 | block_id | rank | score | ndvi_coverage | ndre_coverage | ndvi_q50 | ndre_q50 | disagreement_flag |
 |---|---|---|---|---|---|---|---|
