@@ -8,8 +8,8 @@
 
 ## TL;DR: resume here
 
-**D1 complete; D2 closed with persistence served after 12 rejected challenger
-families (Prophet, LSTM, and diurnal drift now included); D3 screening artifact current plus a
+**D1 complete; D2 closed with persistence served after 13 rejected challenger
+families (error correction and diurnal drift now included); D3 screening artifact current plus a
 pseudo-label CNN pipeline-validation run; D4 descoped-exploratory; D5/D7
 reports final with the June devlog gap filled; D6 has live cluster access
 (namespace `ihv-jupyterlab`), base resources applied, data seeded, and a
@@ -26,10 +26,13 @@ is ever active**. Four 6/12 h cells are exactly 0.000, because the correction
 never fires there and water balance is identical to persistence. The
 ADR-0003 gate therefore fails. **Persistence remains the served D2 forecaster** and
 water balance stays research with a sharper open question: per-fold
-forecast-bust robustness rather than a new model family. Twelve challenger
+forecast-bust robustness rather than a new model family. Thirteen challenger
 families have now been evaluated and rejected; Prophet and LSTM, the last two
 proposal-named families, joined the list on 2026-08-05 (Prophet aggregate skill
-−14.7 to −2.5%, LSTM −4.2 to −8.3%, neither positive anywhere). The pooled and water-balance
+−14.7 to −2.5%, LSTM −4.2 to −8.3%, neither positive anywhere), followed the
+same day by diurnal-drift (returns-space hour-of-day seasonality) and a
+cross-probe error-correction model (spread mean-reversion is real, AR(1) 0.95
+to 0.98 hourly, but far too slow to beat the last observation). The pooled and water-balance
 rungs ran on all five probes, the earlier per-sensor rungs on four
 (SE0X-LS-1 was only recovered on 2026-07-09).
 
@@ -56,7 +59,7 @@ now live: kubeconfig + kubelogin work, namespaces `ihv-jupyterlab` and
 `ihv-llm` are usable, the base ConfigMap and both CephFS PVCs are applied and
 Bound, raw sensor and weather data are seeded onto the data PVC, and a
 smoke-tested linux/amd64 image is built locally. The only missing step is a
-GitLab project to push the image to. Current local gate: **228 tests passed**;
+GitLab project to push the image to. Current local gate: **248 tests passed**;
 Ruff, formatting, mypy, strict MkDocs, codemap regeneration, and deterministic report
 regeneration are clean. The sensor and weather snapshots (including the archived
 forecast-vintage parquet) are re-pinned and pushed to the `nrp` remote; the
@@ -143,7 +146,7 @@ winter/dormant; the useful growing-season flights are Aug (pre-harvest) + Oct
 |---|-------------|--------|-------|
 | — | Repo + Claude Code scaffold + wiki | ☑ | builds green: ruff/mypy/tests |
 | D1 | Data pipeline | ☑ | **all three reachable inputs done + live-verified**: sensor path (ingest→flags→features→weather/GDD), weather reader (historical, forecast, **and archived forecast vintages**), **imagery path** (WebDAV flight index → capture grouping → band download → NDVI) + **block alignment** (39 KMZ polygons, sensor→block join, windowed zonal stats with polygon-interior coverage). Historical records (input #3) remain a mentor Q, and matter only for D4 |
-| D2 | Irrigation models | ☑ | **Closed: persistence is the served forecaster.** Twelve challenger families evaluated and rejected, now including Prophet and LSTM (2026-08-05; neither positive at any horizon). Water balance was validated on **real archived forecast vintages**: the 48 h aggregate edge survives (+5.3…+13.5%), 24 h flips negative, worst-fold skill negative wherever the correction is active → not promoted, stays research. D6 serves persistence+threshold |
+| D2 | Irrigation models | ☑ | **Closed: persistence is the served forecaster.** Thirteen challenger families evaluated and rejected, now including Prophet, LSTM, diurnal-drift, and cross-probe error correction (2026-08-05; none pass the worst-fold gate). Water balance was validated on **real archived forecast vintages**: the 48 h aggregate edge survives (+5.3…+13.5%), 24 h flips negative, worst-fold skill negative wherever the correction is active → not promoted, stays research. D6 serves persistence+threshold |
 | D3 | Plant-health CV | ☑ (label-free scope) | Corrected 39-block screen complete on real 2026-06-01 rasters: 39/39 pass the polygon-interior coverage gate, deterministic concern ranks retained as a versioned artifact and rendered offline. A pseudo-label CNN pipeline-validation run (ResNet-50, NDVI/NDRE channels, block-level split, val acc 0.806) proves the supervised training path end to end; its card states plainly it is not stress detection. Supervised classification remains blocked on mentor-provided labels |
 | D4 | Harvest timing | ☑ (descoped-exploratory) | No harvest/yield/Brix labels exist (input #3), so per ADR-0003 D4 is exploratory: a label-free GDD/Winkler phenology module with no learned parameters, plus a report and model card that state plainly it does not ship. Supervised D4 stays blocked on records |
 | D5 | Evaluation report | ☑ | Shared metrics, expanding walk-forward, per-fold skill, `h−1` training-label purge. Final report is regenerated offline from pinned snapshots with no MLflow or network dependency |
@@ -428,6 +431,30 @@ winter/dormant; the useful growing-season flights are Aug (pre-harvest) + Oct
   path. Push blocked only on a GitLab project. (5) **Observed:** InfluxDB
   token rotated (all device reads 401), which closes mentor Q5; a new token is
   needed for fresh ingest. Gate: **228 tests passed**, mkdocs strict clean.
+
+- **2026-08-05 (night)**: **Irrigation-event catalog derived, plus three more
+  D2 analyses: diurnal-drift and error-correction challengers (both rejected,
+  count now thirteen) and first-passage crossing probabilities (a win on
+  Brier at 24/48 h).** (1) **Events:** `d2_irrigation/events.py` detects
+  soil-moisture rise events from gap-free windows and attributes them to rain
+  via daily precipitation. 55 events cataloged: 51 rain, 4 irrigation (all
+  four in the verified zero-precip Mar 8 to 20 window; median irrigation jump
+  0.62 vs rain 2.47). Report + CSV in `docs/reports/`. (2) **Diurnal drift
+  (challenger 12):** persistence plus cumulative hour-of-day mean deltas,
+  plain and temp-tercile variants. First-ever positive worst-fold cells
+  (LS-2/LS-4 at 24/48 h) yet the gate fails on 6/12 h and the other probes →
+  rejected. (3) **Error correction (challenger 13):** cross-probe spread
+  model; the spread genuinely mean-reverts (hourly AR(1) 0.95 to 0.98,
+  half-life 14 to 31 h) and beta points toward reversion in 81 of 100 fold
+  cells, yet reversion is too slow to beat the last observation. Worst-fold
+  skill negative in all 20 cells → rejected. MLflow run
+  `32735834038b40bb9cce950347beee0d`. (4) **First passage:** Brownian
+  crossing probabilities (EWMA drift + volatility) for threshold alerts.
+  Beats binary persistence on Brier at 12/24/48 h (48 h: 0.0099 vs 0.0203,
+  half the score); extremes calibrated, mid-range overconfident. Analysis
+  only, deliberately not wired into D6 serving. MLflow run
+  `52649766c9a44bc784ad6515ee75e58d`. Gate: **248 tests passed**, mkdocs
+  strict clean, codemap regenerated.
 
 ## Open questions for mentor
 

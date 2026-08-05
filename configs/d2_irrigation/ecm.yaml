@@ -1,0 +1,15 @@
+# Hypothesis: the five soil probes share one weather forcing, so their
+# standardized levels may be cointegrated, the pairs-trading setting. A probe
+# that diverges from the cross-section should revert toward it, so the
+# forecast is the last observed level plus an error-correction term fit by
+# OLS on the training fold: delta_y over (t, t+h] = alpha + beta * s(t),
+# where s(t) is the probe's z-score minus the mean of the other probes'
+# z-scores. This differs from the pooled rung, which stacked rows under one
+# regression; here the predictor is the divergence itself. Rows with any
+# probe missing are excluded, never imputed. Baseline: naive.yaml.
+model: ecm
+target: soil_water
+features: [soil_water]
+horizons_h: [6, 12, 24, 48]
+n_folds: 5
+irrigate_below: 25.0

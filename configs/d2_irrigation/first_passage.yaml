@@ -1,0 +1,9 @@
+# First-passage (barrier-crossing) probability layer over the persistence
+# random walk (D2). Forecasts P(soil moisture crosses below the irrigation
+# threshold within the next h hours) instead of the level itself.
+threshold: 25.0
+horizons_h: [6, 12, 24, 48]
+n_folds: 5
+sigma_halflife_h: 72.0 # EWMA halflife (in gap-free pairs) for volatility
+mu_halflife_h: 336.0 # slow EWMA halflife for the optional drift
+min_pairs: 24 # gap-free pairs required before estimates exist
