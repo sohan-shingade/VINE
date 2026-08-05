@@ -612,6 +612,19 @@ winter/dormant; the useful growing-season flights are Aug (pre-harvest) + Oct
   (experiment `d2_irrigation`). Devlog post
   `docs/devlog/2026-08-05-survival-clock.md`. Gate: **348 tests passed**,
   mkdocs strict clean.
+- **Mentor notebooks rendered; GitHub issues #1 and #2 closed (2026-08-05).**
+  Both reviewed notebooks carried no stored outputs, which is correct for the
+  repo (`scripts/check_notebooks.py` fails on committed outputs) but meant they
+  rendered on GitHub as code with no figures, so they did not work as the "show
+  and tell" artifacts the mentor asked for on 2026-07-23. Added
+  `scripts/render_notebooks.py`, which executes each notebook from the repo root
+  and writes an executed markdown view to `docs/notebooks/` with the plots
+  extracted into `docs/notebooks/assets/`. Both pages are in the mkdocs nav.
+  Notebook 01 gained a section covering the nine challenger families evaluated
+  after its frozen seven-family manifest. Separately, `main` had not advanced
+  since 2026-07-09 while 18 commits of finished work sat on
+  `track/d2-d3-serving-notebooks`; `main` is now fast-forwarded to match, so the
+  commit link given to the mentor at midterm shows the real history.
 
 ## Open questions for mentor
 
