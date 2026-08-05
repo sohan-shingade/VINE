@@ -18,3 +18,4 @@ the `/adr` Claude command or copy [`0000-template.md`](0000-template.md).
 | [0009](0009-weather-data-sources.md) | Weather: reanalysis archive + forecast (not AWIPS for history) | Accepted |
 | [0010](0010-economic-value-for-alert-rules.md) | Cost-loss economic value for D2 irrigation alert rules | Accepted |
 | [0011](0011-skill-ceiling-evaluation.md) | Skill ceiling and efficiency as the D2 probabilistic evaluation lens | Accepted |
+| [0012](0012-censoring-aware-time-to-event.md) | Censoring-aware time-to-event evaluation for the irrigation clock | Accepted |

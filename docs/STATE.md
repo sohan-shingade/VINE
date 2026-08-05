@@ -63,7 +63,7 @@ now live: kubeconfig + kubelogin work, namespaces `ihv-jupyterlab` and
 `ihv-llm` are usable, the base ConfigMap and both CephFS PVCs are applied and
 Bound, raw sensor and weather data are seeded onto the data PVC, and a
 smoke-tested linux/amd64 image is built locally. The only missing step is a
-GitLab project to push the image to. Current local gate: **288 tests passed**;
+GitLab project to push the image to. Current local gate: **348 tests passed**;
 Ruff, formatting, mypy, strict MkDocs, codemap regeneration, and deterministic report
 regeneration are clean. The sensor and weather snapshots (including the archived
 forecast-vintage parquet) are re-pinned and pushed to the `nrp` remote; the
@@ -580,6 +580,38 @@ winter/dormant; the useful growing-season flights are Aug (pre-harvest) + Oct
   `docs/reports/assets/d2_ceiling_results.csv`; 18 new tests; MLflow run
   `94253f29c4324271875f5ce48e7b3d07`. Devlog post
   `docs/devlog/2026-08-05-skill-ceiling.md`. Gate: **332 tests passed**.
+
+- **2026-08-05 (late): survival-analysis irrigation clock built and evaluated
+  (research, not promoted).** New module `vine.d2_irrigation.survival` plus
+  runner `scripts/d2_survival.py`, config
+  `configs/d2_irrigation/survival.yaml`, and ADR-0012. Recasts irrigation
+  need as the censored time-to-event question a grower asks: hours until a
+  0.3-unit drawdown, answered with a full survival curve S(h) for h = 1 to
+  48 and scored by the IPCW integrated Brier score (Graf 1999) under the
+  usual purged walk-forward. The methodological repair: decision windows cut
+  short by sensor gaps or the record end are right-censored instead of
+  dropped (the stopping layer's fully-observed-window rule conditions on the
+  future), which scores 98 to 139 previously excluded rows per probe out of
+  1409 decisions each. Seven curves compared: Kaplan-Meier training null,
+  deterministic drydown calculator (practice), continuous and discrete
+  Gaussian first passage, filtered historical simulation, a discrete-time
+  hazard regression (Singer-Willett person-period logistic; the only model
+  that can represent the diurnal ET phase, unit-verified on synthetic
+  noon-crossing data), and an equal-weight FHS-hazard blend. Results: the
+  calculator is worst on four of five probes; the KM null beats every
+  random-walk model on quiet SE01-LS-4; the hazard model is best exactly
+  there and on SE01-LS-3; the blend (no fitted weight, justified by Brier
+  convexity) is best on three probes, second on one, third by 0.0012 on
+  SE0X-LS-1, and is the only model with positive aggregate skill against
+  the KM null on all five probes (+0.022 to +0.508). No uniform worst-fold
+  pass, the zero-event final fold is excluded from skill aggregation (35
+  cells, printed by the runner), persistence + threshold stays served.
+  Report `docs/reports/2026-08-05-survival-clock.md`; tables
+  `docs/reports/assets/d2_survival_*.csv`; 16 new tests including an IPCW
+  recovery simulation; MLflow run `4406fcba5f64453483d931919ef0e5ce`
+  (experiment `d2_irrigation`). Devlog post
+  `docs/devlog/2026-08-05-survival-clock.md`. Gate: **348 tests passed**,
+  mkdocs strict clean.
 
 ## Open questions for mentor
 

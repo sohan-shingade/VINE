@@ -58,6 +58,7 @@ nav:
       - 0009 Weather data sources: adr/0009-weather-data-sources.md
       - 0010 Economic value for alerts: adr/0010-economic-value-for-alert-rules.md
       - 0011 Skill ceiling evaluation: adr/0011-skill-ceiling-evaluation.md
+      - 0012 Censoring-aware time-to-event: adr/0012-censoring-aware-time-to-event.md
   - Devlog:
       - Overview: devlog/index.md
       - 2026-07-23 — D2, D3 & serving: devlog/2026-07-23-d2-d3-serving.md
@@ -65,6 +66,7 @@ nav:
       - "2026-08-05: June in review": devlog/2026-08-05-june-in-review.md
       - "2026-08-05: The decision layer": devlog/2026-08-05-decision-layer.md
       - "2026-08-05: The skill ceiling": devlog/2026-08-05-skill-ceiling.md
+      - "2026-08-05: The irrigation clock": devlog/2026-08-05-survival-clock.md
   - Reports:
       - Reproducible final evaluation (2026-08-05): reports/2026-08-05-final-evaluation.md
       - D4 GDD phenology exploration (2026-08-04): reports/2026-08-04-d4-gdd-exploration.md
@@ -78,5 +80,6 @@ nav:
       - Irrigation control policy review (2026-08-05): reports/2026-08-05-irrigation-control-review.md
       - D2 optimal-stopping decision layer (2026-08-05): reports/2026-08-05-optimal-stopping.md
       - D2 skill ceiling and FHS ensemble (2026-08-05): reports/2026-08-05-skill-ceiling.md
+      - D2 survival clock (2026-08-05): reports/2026-08-05-survival-clock.md
   - Roadmap: roadmap.md
   - Glossary: glossary.md

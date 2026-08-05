@@ -14,3 +14,4 @@ command.
 - 2026-08-05: [June in review: filling a six-week reporting gap](2026-08-05-june-in-review.md)
 - 2026-08-05: [The decision layer: what finance and control theory taught the irrigation alert](2026-08-05-decision-layer.md)
 - 2026-08-05: [The skill ceiling: measuring the wall, then reaching most of it](2026-08-05-skill-ceiling.md)
+- 2026-08-05: [The irrigation clock: asking "how long until water?" the way medicine would](2026-08-05-survival-clock.md)
