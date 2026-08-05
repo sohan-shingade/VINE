@@ -13,6 +13,7 @@ from vine.d2_irrigation.stopping import (
     distance_to_threshold,
     economic_value,
     exercise_boundary,
+    exercise_boundary_delayed,
     filtered_increments,
     gaussian_increments,
     increment_pool,
@@ -192,6 +193,53 @@ def test_exercise_boundary_lower_for_higher_cost_ratio():
     b_cheap = exercise_boundary(inc, 0.0, 24, 0.3, grid_hi=2.0)
     b_dear = exercise_boundary(inc, 0.0, 24, 0.6, grid_hi=2.0)
     assert np.all(b_dear <= b_cheap + 1e-9)
+
+
+# --- delayed exercise boundary --------------------------------------------
+
+
+def test_delayed_boundary_zero_delay_matches_instant():
+    # delay_h = 0 makes the exercise value the constant cost_ratio, so the
+    # recursion must reduce exactly to the instant-response boundary.
+    inc = gaussian_increments(-0.05, 0.1)
+    for ratio in (0.1, 0.3):
+        b0 = exercise_boundary(inc, 0.0, 24, ratio, grid_hi=3.0)
+        bd = exercise_boundary_delayed(inc, 0.0, 24, ratio, delay_h=0, grid_hi=3.0)
+        assert np.allclose(bd, b0, rtol=0.0, atol=1e-10)
+
+
+def test_delayed_boundary_nondecreasing_in_delay():
+    # A slower response means the level keeps walking while the crew works, so
+    # at the longest exposure the trigger can only rise with the lead time.
+    inc = gaussian_increments(-0.05, 0.1)
+    last = [
+        float(exercise_boundary_delayed(inc, 0.0, 24, 0.1, d, grid_hi=3.0)[-1])
+        for d in (0, 2, 6, 12)
+    ]
+    assert all(a <= b + 1e-9 for a, b in zip(last, last[1:], strict=False))
+    # The effect is material, an order of magnitude above grid noise.
+    assert last[-1] > last[0] + 0.5
+
+
+def test_delayed_boundary_one_hour_identity():
+    # With one hour remaining and at least one hour of lead time the water
+    # cannot land inside the window: exposure is min(d, 1) = 1 either way, so
+    # exercise = c + Q_1 > Q_1 = wait and the boundary sits at the barrier.
+    inc = gaussian_increments(-0.05, 0.1)
+    for d in (1, 3, 24):
+        b = exercise_boundary_delayed(inc, 0.0, 24, 0.3, d, grid_hi=3.0)
+        assert b[0] == 0.0
+
+
+def test_delayed_boundary_monotone_in_k_and_nan_cases():
+    inc = gaussian_increments(-0.05, 0.1)
+    b = exercise_boundary_delayed(inc, 0.0, 24, 0.3, 6, grid_hi=3.0)
+    assert b.shape == (24,)
+    # More exposure hours make waiting riskier, so the trigger only rises.
+    assert np.all(np.diff(b) >= -1e-9)
+    for bad_ratio in (0.0, 1.0, 1.5, -0.1):
+        assert np.isnan(exercise_boundary_delayed(inc, 0.0, 24, bad_ratio, 6, grid_hi=3.0)).all()
+    assert np.isnan(exercise_boundary_delayed(np.empty(0), 0.0, 24, 0.3, 6, grid_hi=3.0)).all()
 
 
 # --- distance to threshold ------------------------------------------------

@@ -61,6 +61,7 @@ nav:
       - 2026-07-23 — D2, D3 & serving: devlog/2026-07-23-d2-d3-serving.md
       - 2026-08-05 — Final push: devlog/2026-08-05-final-push.md
       - "2026-08-05: June in review": devlog/2026-08-05-june-in-review.md
+      - "2026-08-05: The decision layer": devlog/2026-08-05-decision-layer.md
   - Reports:
       - Reproducible final evaluation (2026-08-05): reports/2026-08-05-final-evaluation.md
       - D4 GDD phenology exploration (2026-08-04): reports/2026-08-04-d4-gdd-exploration.md

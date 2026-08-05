@@ -12,3 +12,4 @@ command.
 - 2026-07-23: [D2 closes honestly; D3 and local serving begin](2026-07-23-d2-d3-serving.md)
 - 2026-08-05: [Final push: D4 gets its honest slice; D2 and D3 face their own caveats](2026-08-05-final-push.md)
 - 2026-08-05: [June in review: filling a six-week reporting gap](2026-08-05-june-in-review.md)
+- 2026-08-05: [The decision layer: what finance and control theory taught the irrigation alert](2026-08-05-decision-layer.md)

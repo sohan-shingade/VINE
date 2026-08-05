@@ -202,6 +202,35 @@ premium grows with response delay, so the moment irrigation takes nontrivial
 lead time (crew scheduling, valve rotation), this same recursion with a delay
 term is where the value appears.
 
+### With response delay: the premium becomes real
+
+`exercise_boundary_delayed` extends the recursion with a lead time d:
+irrigating still costs the same, but the water lands d hours later, and a
+crossing during those d hours is a loss the decision can no longer prevent.
+The exercise value becomes the cost plus the crossing probability over the
+delay window, and the boundary rises accordingly. At cost ratio 0.1 and the
+48 hour horizon, mean across probes:
+
+| Lead time | Boundary (sigmas) | Premium (moisture units) |
+|---|---|---|
+| 0 h | 4.90 | 0.093 |
+| 2 h | 7.24 | 0.134 |
+| 4 h | 8.67 | 0.161 |
+| 8 h | 10.84 | 0.201 |
+| 12 h | 12.59 | 0.234 |
+| 24 h | 16.31 | 0.302 |
+
+The growth is concave: about 0.021 units of extra headroom per hour over the
+first two hours of delay, falling to about 0.006 per hour beyond twelve.
+Two facts fall out. The first two hours of lead time cost as much premium as
+the entire instant-response premium, so even a modest scheduling delay
+doubles the headroom a correct trigger needs. And at a 24 hour lead time the
+required headroom (about 0.30 units) equals the 0.3-unit drawdown depth
+itself, meaning the trigger must fire a full event-magnitude early. This is
+the operational boundary of the threshold-rule regime: with same-hour
+response a fixed trigger at the barrier is near optimal, and with day-scale
+lead times a rule that ignores delay is guaranteed late.
+
 ## Economic value: what any of this is worth to a grower
 
 Proper scores cannot see that an alert firing on nearly every hour is useless.
@@ -251,13 +280,12 @@ system, and an alert system is an open-loop object: irrigating in response to
 an alert would change the future path, and the record contains no
 counterfactual, so the realized series is treated as the no-intervention path.
 Closing the loop is a control problem and needs either an intervention model or
-field experimentation. Second, the exercise boundary is derived under
-instantaneous irrigation. With the observed conditional volatility of 0.013 to
-0.026 units per hour the premium under instant response is small, which is
-quantitatively why a threshold rule works on this crop. A nonzero response
-delay (crew scheduling, valve lead time, block rotation) is what would make the
-premium operationally significant, and extending the recursion with a delay is
-the natural next step.
+field experimentation. Second, the delay analysis takes the lead time as a
+known constant. Real lead times are themselves uncertain (crew availability,
+shared valve schedules), and a stochastic delay would push the boundary higher
+still; the constant-delay numbers above are therefore a lower bound on the
+headroom a delayed system needs. The true lead-time distribution at Iron Horse
+is a question for the mentor and the operations log.
 
 ## Sources
 

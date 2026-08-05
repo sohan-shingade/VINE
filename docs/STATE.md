@@ -537,10 +537,16 @@ winter/dormant; the useful growing-season flights are Aug (pre-harvest) + Oct
   over-irrigation). Backward-induction exercise boundaries put the optimal
   trigger only 0.02 to 0.13 units above the barrier at observed volatilities,
   which is the quantitative reason threshold rules keep winning on this
-  plant; response delay is what would change that. Report
+  plant. Extending the recursion with a response lead time
+  (`exercise_boundary_delayed`) shows the first two hours of delay double
+  the required headroom and a 24 h lead time raises it to the full event
+  depth, so day-scale lead times are the boundary of the threshold-rule
+  regime; the real lead-time distribution is a new mentor question. Report
   `docs/reports/2026-08-05-optimal-stopping.md`; tables
-  `docs/reports/assets/d2_stopping_*.csv`; 22 new tests including a
-  200k-path Monte Carlo pin of the crossing recursion.
+  `docs/reports/assets/d2_stopping_*.csv`; 26 new tests including a
+  200k-path Monte Carlo pin of the crossing recursion. Devlog post
+  `docs/devlog/2026-08-05-decision-layer.md`. Gate: **314 tests passed**,
+  mkdocs strict clean.
 
 ## Open questions for mentor
 

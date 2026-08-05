@@ -395,6 +395,92 @@ def _boundary_level(
     return float(grid[top] + w * (grid[top + 1] - grid[top]))
 
 
+def exercise_boundary_delayed(
+    increments: np.ndarray,
+    threshold: float,
+    horizon_h: int,
+    cost_ratio: float,
+    delay_h: int,
+    grid_hi: float,
+) -> np.ndarray:
+    """Optimal irrigation trigger when water lands `delay_h` hours after the order.
+
+    Same decision problem as `exercise_boundary`, with one operational change:
+    protection is no longer instant. Ordering water starts a crew and valve
+    rotation that takes `delay_h` hours, and the level keeps walking while it
+    runs, so paying the cost still leaves min(delay_h, k) hours of crossing
+    exposure. Writing Q_j(S) for the probability that the walk from S falls to
+    or below `threshold` within j hourly steps (Q_0 = 0),
+
+        X_k(S) = cost_ratio + Q_{min(delay_h, k)}(S)     exercise value
+        W_k(S) = E_d[V_{k-1}(S + d)]                     continuation value
+        V_0(S) = 0                    for S > threshold
+        V_k(S) = min(X_k(S), W_k(S))
+        V_k(S) = 1                    for S <= threshold, any k
+
+    Both X_k and W_k decrease in S, so the irrigate region is again the
+    interval below a single boundary, the highest S with X_k(S) <= W_k(S).
+    With `delay_h` = 0 the exercise value is the constant `cost_ratio` and the
+    recursion reduces exactly to `exercise_boundary`. With k <= `delay_h` the
+    water cannot land inside the exposure window, irrigating buys nothing over
+    waiting, and the boundary sits at `threshold`; for k > `delay_h` the delay
+    pushes the trigger up, which prices the operational cost of a slow
+    response. Q_j is evaluated once per j in 1 to min(delay_h, horizon_h) via
+    `crossing_curve` and interpolated onto the boundary grid.
+
+    Args:
+        increments: discretized increment law (see `discretize_increments`).
+        threshold: stress barrier.
+        horizon_h: longest exposure window considered, in hours.
+        cost_ratio: irrigation cost divided by stress loss, in (0, 1).
+        delay_h: hours from ordering irrigation to the water landing, >= 0.
+        grid_hi: top of the moisture grid; should sit well above the barrier.
+
+    Returns:
+        Array of length `horizon_h`; entry k-1 is the trigger level with k hours
+        remaining. Equal to `threshold` where irrigating is never optimal.
+    """
+    if len(increments) == 0 or not 0.0 < cost_ratio < 1.0 or delay_h < 0:
+        return np.full(horizon_h, np.nan)
+    grid = _level_grid(threshold, max(grid_hi - threshold, 1e-6), increments)
+    # Q_j on the boundary grid, one curve per exposure length the delay creates.
+    q_curves = [np.zeros(len(grid))]
+    for j in range(1, min(delay_h, horizon_h) + 1):
+        c_grid, c_probs = crossing_curve(increments, threshold, j)
+        q_curves.append(np.where(grid <= threshold, 1.0, np.interp(grid, c_grid, c_probs)))
+    value = np.zeros(len(grid))
+    boundaries = np.empty(horizon_h)
+    for k in range(1, horizon_h + 1):
+        cont = _continuation(grid, value, increments, threshold)
+        exercise = cost_ratio + q_curves[min(delay_h, k)]
+        boundaries[k - 1] = _boundary_level_two_curves(grid, cont, exercise, threshold)
+        value = np.minimum(cont, exercise)
+    return boundaries
+
+
+def _boundary_level_two_curves(
+    grid: np.ndarray, cont: np.ndarray, exercise: np.ndarray, threshold: float
+) -> float:
+    """Highest level at which exercising beats waiting, for a level-dependent cost.
+
+    The same last-node plus linear-interpolation rule as `_boundary_level`,
+    applied to the gap W - X so it also covers an exercise value that varies
+    with the level.
+    """
+    gap = cont - exercise
+    irrigate = gap >= 0.0
+    if not irrigate.any():
+        return float(threshold)
+    top = int(np.max(np.flatnonzero(irrigate)))
+    if top == len(grid) - 1:
+        return float(grid[-1])
+    g0, g1 = gap[top], gap[top + 1]
+    if g0 == g1:
+        return float(grid[top])
+    w = g0 / (g0 - g1)
+    return float(grid[top] + w * (grid[top + 1] - grid[top]))
+
+
 def distance_to_threshold(level: float, threshold: float, sigma: float, horizon_h: int) -> float:
     """Headroom to the barrier measured in horizon volatilities.
 

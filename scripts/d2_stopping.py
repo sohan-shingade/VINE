@@ -52,6 +52,7 @@ from vine.d2_irrigation.stopping import (
     crossing_curve,
     economic_value,
     exercise_boundary,
+    exercise_boundary_delayed,
     gaussian_increments,
     standardized_pool,
 )
@@ -84,6 +85,7 @@ class StoppingConfig(BaseModel):
     min_pairs: int = 24
     n_drift_buckets: int = 24
     cost_ratios: list[float] = [0.02, 0.05, 0.1, 0.2, 0.3, 0.5]
+    delay_hours_h: list[int] = [0, 2, 4, 8, 12, 24]
 
 
 def absolute_labels(obs: np.ndarray, below: np.ndarray, h: int) -> tuple[np.ndarray, np.ndarray]:
@@ -319,6 +321,31 @@ def boundary_rows(
                     "barrier": barrier,
                     "horizon_h": h,
                     "cost_ratio": c,
+                    "delay_h": 0,
+                    "boundary_sigmas": x_star,
+                    "sigma_median": sig_med,
+                    "boundary_level": barrier + x_star * sig_med,
+                    "premium_level": x_star * sig_med,
+                }
+            )
+        # Delayed-response boundaries at one representative cost ratio only, so
+        # the table stays small. Delay 0 is already the row emitted above.
+        if not np.isclose(c, 0.1):
+            continue
+        for d in cfg.delay_hours_h:
+            if d == 0:
+                continue
+            xbd = exercise_boundary_delayed(
+                m_med + shape, 0.0, max_h, c, d, 12.0 + abs(m_med) * max_h
+            )
+            x_star = float(xbd[max_h - 1])
+            rows.append(
+                {
+                    "device": device,
+                    "barrier": barrier,
+                    "horizon_h": max_h,
+                    "cost_ratio": c,
+                    "delay_h": d,
                     "boundary_sigmas": x_star,
                     "sigma_median": sig_med,
                     "boundary_level": barrier + x_star * sig_med,
