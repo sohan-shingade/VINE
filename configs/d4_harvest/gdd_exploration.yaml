@@ -1,0 +1,48 @@
+# Label-free GDD phenology exploration for D4 (harvest timing).
+#
+# NOT a harvest predictor. D4 is blocked on historical harvest/yield/Brix
+# records (docs/STATE.md input #3); per ADR-0003 it is descoped to exploratory.
+# This config drives climate context only: cumulative growing degree-days per
+# season and the dates each literature phenology band was crossed.
+#
+# Base 10 C, Apr 1 - Oct 31 accumulation = the Winkler heat-summation
+# convention (Amerine & Winkler 1944). upper_cap_c is null (classic variant);
+# set it to 30.0 for the "modified" variant.
+base_temp_c: 10.0
+upper_cap_c: null
+
+seasons:
+  - label: "2025"
+    start: "2025-04-01"
+    end: "2025-10-31"
+  - label: "2026"
+    start: "2026-04-01"
+    end: "2026-10-31"   # in-season: the runner truncates to the last archived day
+
+# Reference bands. Sources are in src/vine/d4_harvest/phenology.py. Both cited
+# papers accumulate from Jan 1, not Apr 1, so under this window the thresholds
+# land slightly later than published. Order-of-magnitude context only.
+bands:
+  - name: bloom
+    gdd_start: 350.0
+    source: "Van Leeuwen et al. (IVES OpenScience), Bavaresco et al. 2019 - Chardonnay flowering ~350 GDD10 from Jan 1"
+  - name: veraison
+    gdd_start: 1100.0
+    gdd_end: 1250.0
+    source: "Van Leeuwen et al.: veraison 908-1250 GDD10 across cultivars; Bavaresco et al. 2019: Chardonnay mid-veraison 1165 GDD10"
+  # PLACEHOLDER, NOT EVIDENCE. Iron Horse picks Chardonnay/Pinot Noir early for
+  # sparkling base wine (~17-21 Brix). No peer-reviewed C-GDD threshold for a
+  # sparkling pick was found. These numbers exist so the crossing table has a
+  # watch window to calibrate once mentor harvest records arrive. Do not use
+  # them to schedule anything.
+  - name: sparkling_harvest_watch_UNCALIBRATED
+    gdd_start: 1250.0
+    gdd_end: 1500.0
+    source: "PLACEHOLDER - requires calibration against IHV harvest dates + Brix (mentor input #3)"
+
+# Optional local daily-weather CSV/Parquet snapshot (date, temp_max_c,
+# temp_min_c, ...). If null or absent the runner fetches Open-Meteo archive.
+snapshot_csv: null
+
+output_path: data/processed/d4_gdd_trajectories.csv
+crossings_path: data/processed/d4_gdd_crossings.csv
