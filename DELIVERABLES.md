@@ -9,11 +9,11 @@ folder list reads top-to-bottom like the proposal. Progress: see
 |---|-------------|--------------------|---------|-----------|-----------------|--------|
 | **D1** | Data ingestion & feature pipeline | `d1_pipeline/` | `configs/d1_pipeline/` | `docker/d1_ingest.Dockerfile` | `k8s/d1_ingest/` | ☑ |
 | **D2** | Irrigation scheduling (forecasting) | `d2_irrigation/` | `configs/d2_irrigation/` | `docker/d2_irrigation.Dockerfile` | `k8s/d6_serving/` | ☑ persistence champion |
-| **D3** | Plant-health computer vision | `d3_vision/` | `configs/d3_vision/` | `docker/d3_vision.Dockerfile` | `k8s/d6_serving/` | ◐ label-free screening |
-| **D4** | Harvest-timing forecasting | `d4_harvest/` | `configs/d4_harvest/` | `docker/d4_harvest.Dockerfile` | `k8s/d6_serving/` | ☐ blocked on records |
-| **D5** | Cross-track evaluation | `d5_evaluation/` | — | — | — | ◐ |
+| **D3** | Plant-health computer vision | `d3_vision/` | `configs/d3_vision/` | `docker/d3_vision.Dockerfile` | `k8s/d6_serving/` | ☑ label-free screening |
+| **D4** | Harvest-timing forecasting | `d4_harvest/` | `configs/d4_harvest/` | `docker/d4_harvest.Dockerfile` | `k8s/d6_serving/` | ☑ exploratory (labels absent) |
+| **D5** | Cross-track evaluation | `d5_evaluation/` | — | — | — | ☑ |
 | **D6** | NRP deployment (FastAPI services) | `d6_serving/` | — | (per-track images above) | `k8s/d6_serving/` | ◐ local API |
-| **D7** | Documentation & devlog | — | — | — | — | ◐ ([wiki](docs/index.md)) |
+| **D7** | Documentation & devlog | — | — | — | — | ☑ ([wiki](docs/index.md)) |
 
 Cross-cutting (not a deliverable): `src/vine/common/` (config, logging, seeding).
 

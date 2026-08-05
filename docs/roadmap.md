@@ -17,15 +17,23 @@ testable artifact — no big-bang integration. Mirrors the proposal timeline.
 ## Status legend
 `☐ planned · ◐ in progress · ☑ done`
 
+Status as of **2026-08-05 (week 11 of 13)**:
+
 | Deliverable | Status |
 |-------------|--------|
 | D1 Data pipeline | ☑ done + live-verified |
-| D2 Irrigation | ☑ persistence shipped; water balance active experiment |
-| D3 Plant-health CV | ◐ label-free screening MVP; labels pending |
-| D4 Harvest timing | ☐ blocked on historical records |
-| D5 Evaluation report | ◐ walk-forward harness used by D2 |
-| D6 NRP deployment | ◐ local API built; cluster deploy blocked on kubeconfig |
-| D7 Docs & devlog | ◐ ongoing |
+| D2 Irrigation | ☑ persistence shipped; water balance validated on real forecast vintages → gate fails, stays research |
+| D3 Plant-health CV | ☑ label-free scope: corrected 39-block screen complete (39/39 pass coverage); supervised CV blocked on labels |
+| D4 Harvest timing | ☑ descoped to exploratory per ADR-0003: label-free GDD context built (not a model, does not ship); full D4 blocked on historical records |
+| D5 Evaluation report | ☑ walk-forward harness with `h−1` purge; final report regenerates offline from pinned snapshots |
+| D6 NRP deployment | ◐ local API + non-root container verified; cluster deploy blocked on kubeconfig |
+| D7 Docs & devlog | ☑ cards, reports, ADRs, and devlog current; MkDocs builds strict |
+
+Honest read at week 11: every deliverable that can be finished without a human
+input is finished. D6's cluster step cannot start until the kubeconfig arrives,
+and full D4 never unblocked — its exploratory slice is the deliverable unless
+harvest records appear in the final two weeks. Remaining effort goes to handoff
+docs and the final GSoC submission.
 
 ## Future work (post-GSoC)
 Multi-site generalization (transfer learning to other vineyards), digital-twin

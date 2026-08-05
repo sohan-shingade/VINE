@@ -3,39 +3,60 @@
 > **Single source of truth for "where are we."** Git-tracked so it survives any
 > session, machine, or context reset. **Any new session: read this first.**
 > Update it at the end of any session that changes status. Last updated:
-> **2026-07-23**. Phase: **D3 label-free screening MVP + local D6 irrigation
-> serving built; water balance remains an active D2 experiment**.
+> **2026-08-05**. Phase: **all reachable deliverables landed; D2 water balance
+> validated on real forecasts and rejected; D3 corrected screen complete; D4
+> descoped to an exploratory slice**.
 
 ## TL;DR — resume here
 
-**D1 complete; D2 serves persistence while water balance stays active; D3/D6
-MVPs are now built (2026-07-23).** The pooled five-sensor rung was corrected to
-apply the same `h−1` training-label purge as the single-probe evaluator and
-rerun from YAML: fleet skill is −45.1/−52.2/+33.0/+30.2% at 6/12/24/48 h, but
-worst-fold skill remains negative at every horizon, so it still does not ship.
-A constrained water-balance weather
-correction produced +3.5…+11.2% aggregate skill at 48 h across all five probes
-after an adversarial review found and fixed a shared fold-boundary label leak.
-Every probe still has a negative worst fold and the backtest uses realized future
-weather, so water balance is **promising active research, not rejected/removed,
-but not production-promoted**. Persistence remains the safe served fallback.
+**D1 complete; D2 closed with persistence served; D3 screening artifact is
+current; D4 descoped-exploratory; D5/D7 reports final; D6 blocked only on a
+kubeconfig (2026-08-05).**
 
-D3 now has a label-free, same-acquisition NDVI/NDRE block-screening pipeline
-(windowed distributions, polygon-interior coverage flags, deterministic concern
-ranks). An adversarial review invalidated the first run's 30/9 coverage split
-because its denominator used each polygon's bounding box. The corrected remote
-39-block rerun later exited without producing a replacement artifact, so no
-current block ranking is claimed yet. D6 locally
-serves persistence + threshold with typed quality/freshness responses; a real
-stale snapshot correctly suppresses advice. A bounded EM500-PP-4842 pull now
-preserves 22,256 raw pressure observations (2026-01-22 through 2026-07-23) plus
-provenance/quality manifests; its unit, active direction, served block, and
-ground-truth meaning remain unverified, so it is not used as an irrigation-event
-label and does not unblock D4. Current local gate: **161 tests passed**;
-Ruff, formatting, mypy, strict MkDocs, codemap regeneration, deterministic report
-regeneration, and both output-free notebook executions are clean. Remaining
-human blockers: D3 labels, archived forecast
-vintages, kubeconfig, harvest records, pressure semantics, and token rotation.
+The last open D2 caveat is now closed. Water balance was rerun on **real
+archived forecast vintages** (Open-Meteo Previous Runs, `ceil(h/24)`-day lag,
+causality unit-tested) instead of realized future weather. The 48 h aggregate
+edge survives the switch (+5.3…+13.5% across five probes, vs +3.5…+11.2% under
+the oracle), but 24 h flips negative on every probe (−2.8…−8.1%, worst fold
+−2.448) and **worst-fold skill is negative on every probe at every horizon**, so
+the ADR-0003 gate fails. **Persistence remains the served D2 forecaster** and
+water balance stays research with a sharper open question (per-fold forecast-bust
+robustness, not a new model family). Nine challenger families have now been
+evaluated and rejected across five probes.
+
+The corrected D3 39-block screen also completed. Both earlier attempts died in
+the remote `/vsicurl` read path; this run downloaded the two ~4 GB rasters to
+`data/raw/imagery/rasters/` and screened locally. **All 39 blocks pass the
+corrected polygon-interior coverage gate at coverage 1.000** — the superseded
+30/9 split was purely an artifact of the bounding-box denominator, and the
+per-block distributions are unchanged (identical pixel counts and quantiles).
+Concern ranking: H6 and L tied at 1 (0.936), J1/J2 at 3, P/Q at 5; 11 of 39
+carry the NDVI/NDRE disagreement flag. It remains a label-free review queue.
+
+D4 took its descoped exploratory slice (ADR-0003): a label-free GDD/Winkler
+phenology module with no learned parameters. 2025 closed at 1563.2 GDD10
+(Winkler Region II); 2026 is at 920.2 through Aug 5, **+12.0% ahead day-matched**.
+The useful negative result is that transplanted literature véraison bands land
+implausibly late here (Sept 1–17) because they accumulate from Jan 1 while the
+Winkler window starts Apr 1 — quantitative proof that the bands need local
+calibration from the mentor's harvest records.
+
+D6 serves persistence + threshold locally with typed quality/freshness
+responses; a real stale snapshot correctly suppresses advice. Cluster deploy
+needs only the kubeconfig. Current local gate: **186 tests passed**; Ruff,
+formatting, mypy, strict MkDocs, codemap regeneration, and deterministic report
+regeneration are clean. DVC cache and the `nrp` remote are in sync. Remaining
+human blockers: D3 labels, harvest records, kubeconfig, pressure semantics, and
+token rotation.
+
+### Previous state (2026-07-23)
+
+D3 label-free screening and local D6 serving were built; water balance was an
+open oracle-assisted experiment; the corrected 39-block rerun had exited without
+an artifact. The pooled five-sensor rung, corrected to apply the same `h−1`
+training-label purge as the single-probe evaluator, scored fleet skill
+−45.1/−52.2/+33.0/+30.2% at 6/12/24/48 h with negative worst folds at every
+horizon, so it did not ship either.
 
 ### Previous D2 handoff
 
@@ -103,14 +124,14 @@ winter/dormant; the useful growing-season flights are Aug (pre-harvest) + Oct
 
 | D | Deliverable | Status | Notes |
 |---|-------------|--------|-------|
-| — | Repo + Claude Code scaffold + wiki | ☑ | builds green: ruff/mypy/17 tests |
-| D1 | Data pipeline | ☑ | **all three reachable inputs done + live-verified**: sensor path (ingest→flags→features→weather/GDD), weather reader, **imagery path** (WebDAV flight index → capture grouping → band download → NDVI) + **block alignment** (39 KMZ polygons, sensor→block join, windowed zonal stats). Historical (input #3) remains a mentor Q — D4-only. Weather *forecast* (4f) optional, for D2 lead time |
-| D2 | Irrigation models | ☑ (core) | **Persistence remains the served champion.** Nine challenger families evaluated across five probes; oracle-assisted pooled GBT has positive 24/48 h fleet micro-average skill but negative fleet worst folds. Water balance is an **active experiment**: oracle-weather 48 h skill +3.5…+11.2% across probes after purged evaluation, but negative worst folds prevent promotion. D6 now serves persistence+threshold locally. |
-| D3 | Plant-health CV | ◐ | Label-free NDVI/NDRE screening code is built/tested; polygon-interior coverage and accepted-only ranking fixes passed regression tests. The corrected remote 39-block rerun exited without a replacement artifact, so real rankings remain pending. Supervised classification still needs mentor-provided labels. |
-| D4 | Harvest timing | ☐ | depends on input #3; descopable to exploratory |
-| D5 | Evaluation report | ◐ | Shared metrics + expanding walk-forward, per-fold skill, and horizon-aware `h−1` training-label purge after adversarial review. Used by D2; reusable by D4. |
-| D6 | NRP deployment | ◐ | Local typed persistence API built/tested; actual NRP deployment still needs kubectl/kubeconfig. |
-| D7 | Docs + devlog | ◐ | Model cards, roadmap, and 2026-07-23 devlog updated. |
+| — | Repo + Claude Code scaffold + wiki | ☑ | builds green: ruff/mypy/tests |
+| D1 | Data pipeline | ☑ | **all three reachable inputs done + live-verified**: sensor path (ingest→flags→features→weather/GDD), weather reader (historical, forecast, **and archived forecast vintages**), **imagery path** (WebDAV flight index → capture grouping → band download → NDVI) + **block alignment** (39 KMZ polygons, sensor→block join, windowed zonal stats with polygon-interior coverage). Historical records (input #3) remain a mentor Q — D4-only |
+| D2 | Irrigation models | ☑ | **Closed: persistence is the served forecaster.** Nine challenger families evaluated across five probes; none clears the worst-fold gate. Water balance was validated on **real archived forecast vintages** — 48 h aggregate edge survives (+5.3…+13.5%), 24 h flips negative, worst folds negative everywhere → not promoted, stays research. D6 serves persistence+threshold |
+| D3 | Plant-health CV | ☑ (label-free scope) | Corrected 39-block screen complete on real 2026-06-01 rasters: 39/39 pass the polygon-interior coverage gate, deterministic concern ranks retained as a versioned artifact and rendered offline. Supervised classification remains blocked on mentor-provided labels — that is a data blocker, not open code |
+| D4 | Harvest timing | ☑ (descoped-exploratory) | No harvest/yield/Brix labels exist (input #3), so per ADR-0003 D4 is exploratory: a label-free GDD/Winkler phenology module with no learned parameters, plus a report and model card that state plainly it does not ship. Supervised D4 stays blocked on records |
+| D5 | Evaluation report | ☑ | Shared metrics, expanding walk-forward, per-fold skill, `h−1` training-label purge. Final report is regenerated offline from pinned snapshots with no MLflow or network dependency |
+| D6 | NRP deployment | ◐ | Local typed persistence API built/tested/containerized; stale-snapshot suppression verified. Cluster deploy needs only the kubeconfig |
+| D7 | Docs + devlog | ☑ | Model cards for all served/exploratory artifacts, roadmap, four reports, and the 2026-08-05 devlog; MkDocs builds strict |
 
 ## Done log
 
@@ -323,6 +344,42 @@ winter/dormant; the useful growing-season flights are Aug (pre-harvest) + Oct
   real stale snapshot correctly suppresses recommendation. Model cards + devlog
   updated; final repository-wide gate is recorded at the end of this session.
 
+- **2026-08-05** — **D2 closed, D3 landed, D4 descoped: every code-side
+  deliverable is done.** Three tracks ran in parallel under an orchestrator that
+  independently re-verified each result rather than trusting agent reports.
+  (1) **D2 vintage validation.** Built the archived-forecast reader in
+  `d1_pipeline/weather.py` (`vintage_lag_days`, `build_previous_runs_params`,
+  `parse_hourly_vintages`, `fetch_forecast_vintages`) against Open-Meteo's
+  Previous Runs API. Causality rule: for horizon `h` use the `_previous_dayN`
+  run with `N = ceil(h/24)`, rounded **up** so no value in `(t, t+h]` comes from
+  a run issued after decision time `t`; unit-tested including a poisoned
+  fresh-vintage case at 48 h. Fetched 4,032 hourly rows (2026-01-22 → 2026-07-08,
+  zero missing) and reran the same purged evaluation with
+  `weather_source: vintage`. The 48 h aggregate edge survives real forecasts
+  (+5.3…+13.5% vs the oracle's +3.5…+11.2%), but 24 h flips negative on every
+  probe (−2.8…−8.1%, worst fold −2.448) and **worst-fold skill is negative on
+  every probe at every horizon** → gate fails, **not promoted, persistence stays
+  served**. The fresh oracle control run reproduced the 2026-07-23 numbers
+  exactly. (2) **D3 corrected 39-block screen.** Both prior attempts died in the
+  remote `/vsicurl` path (endless `HTTP error code: 0` retries after hours of
+  range reads on two ~4 GB rasters); fixed by fetching both rasters locally with
+  resumable curl and screening against local files. **39/39 blocks pass the
+  corrected polygon-interior coverage gate at coverage 1.000** — the superseded
+  30/9 split was entirely a bounding-box-denominator artifact, and per-block
+  distributions are unchanged (identical pixel counts and quantiles). Ranks:
+  H6 and L tied at 1 (0.936), J1/J2 at 3, P/Q at 5, then M, E, G, B South;
+  11 of 39 carry the NDVI/NDRE disagreement flag. (3) **D4 exploratory slice.**
+  `d4_harvest/phenology.py`: pure GDD/Winkler accumulation with band crossings,
+  no learned parameters, gaps flagged never imputed. 2025 = 1563.2 GDD10
+  (Region II); 2026 = 920.2 through Aug 5, +12.0% ahead day-matched; bloom band
+  crossed within one day across seasons. Useful negative result: literature
+  véraison bands land at Sept 1–17 here because they accumulate from Jan 1 while
+  the Winkler window starts Apr 1 — direct evidence that transplanted thresholds
+  need local calibration. Verified independently by recomputing the GDD totals
+  from Open-Meteo outside the pipeline (exact match). Reports, model cards, and
+  the devlog were written for all three; the D3 and D5 reports regenerate
+  offline from retained artifacts.
+
 ## Open questions for mentor
 
 1. **Historical records** (harvest dates, yields, irrigation logs) — do they exist,
@@ -346,32 +403,28 @@ winter/dormant; the useful growing-season flights are Aug (pre-harvest) + Oct
 
 ## Next actions (when resuming)
 
-1. **Finish corrected D3 rerun:** the polygon-interior coverage and accepted-only
-   percentile fixes pass regression tests. Finish the in-progress 39-block screen
-   and regenerate D3 reports before treating the superseded 30/9 coverage split
-   or H6/L rank as current evidence.
-2. **Make the new snapshots reproducible:** the local sensor/imagery DVC pointers
-   now include the EM500-PP profile and imagery inventory, but their objects have
-   not been pushed. Push only after explicit approval, then verify `dvc status -c`
-   is clean so notebook CI can pull them.
-3. **Validate active D2 research honestly:** keep water balance active and test it
-   on archived forecast vintages or a genuinely new temporal holdout. Persistence
-   remains the served model until worst-fold robustness clears the gate.
-4. **D3/D4 human inputs:** obtain field-reviewed plant-health labels and historical
-   harvest/yield/Brix/irrigation records; D4 remains blocked until then.
-5. **D6 cluster deployment:** kubeconfig, namespace/PVC confirmation, immutable
-   image publication, and a fresh sensor snapshot are still required. The local
-   non-root image and stale-data suppression path are verified.
-6. **Security:** rotate the publicly exposed InfluxDB token. The optional managed
-   LLM token is not required for any core track.
+Every remaining item needs a human input. There is no blocked-on-code work left
+in D1–D5 or D7.
 
-**Done in this worktree:** pooled and water-balance evaluators were purged at
-fold boundaries; ARIMA preserves original fold coordinates under that purge;
-mentor-requested D1/D2 notebooks execute offline; EM500-PP raw pressure was
-preserved without guessed semantics; local D6 packaging was hardened and rejects
-non-finite readings; D3/D5 reports and current-state docs were drafted. The
-remaining local work is the in-progress corrected D3 raster rerun; snapshot DVC
-objects still require an explicitly approved push.
+1. **D6 cluster deployment** — the only unfinished deliverable. Needs the
+   kubeconfig for namespace `ihv`, storage-class/PVC confirmation, an immutable
+   image published to the GitLab registry, and a fresh sensor snapshot. The
+   local non-root image and the stale-data suppression path are already verified.
+2. **D3 labels** — field-reviewed plant-health labels. The fastest source is a
+   field check of the top-ranked blocks in the current screening artifact
+   (H6, L, J1, J2, P, Q); agreement or disagreement is itself the first label set.
+3. **D4 harvest records** — harvest dates, yields, Brix/pH/TA, irrigation logs.
+   Now with a concrete first use: the GDD exploration shows literature véraison
+   bands are demonstrably wrong for this site, so local calibration needs records.
+4. **Security:** rotate the publicly exposed InfluxDB token, then hand off the
+   new one securely. The optional managed LLM token is not required.
+5. **EM500-PP semantics** — unit, active direction, served block, and ground-truth
+   meaning of the 22,256 preserved pressure observations. Until confirmed it is
+   not used as an irrigation-event label.
+
+**State of the tree:** the corrected D3 screen, the D2 vintage validation, and
+the D4 exploratory slice all landed and are committed with their reports. DVC
+cache and the `nrp` remote are in sync (`dvc status -c` clean) — no push pending.
 
 ## How we keep state across sessions
 
