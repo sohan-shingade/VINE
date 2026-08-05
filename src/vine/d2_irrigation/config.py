@@ -9,7 +9,7 @@ from pydantic import BaseModel, Field
 
 class IrrigationConfig(BaseModel):
     model: str = Field(
-        description="naive | ridge | arima | forest | gbt | water_balance implemented"
+        description="naive | ridge | arima | forest | gbt | water_balance | prophet | lstm"
     )
     device: str = "SE01-LS-1"  # which sensor's snapshot to forecast
     target: str = "soil_water"  # column to forecast (a KIND_MEASUREMENTS name)
@@ -37,6 +37,9 @@ class IrrigationConfig(BaseModel):
     wb_huber_max_iter: int = Field(default=500, ge=50)
     # ARIMA-only knobs
     order: list[int] = [2, 1, 2]
+    # Prophet-only knobs: shifted feature columns fed as external regressors
+    # (their value on the row for target time t is the reading at t-h).
+    prophet_regressors: list[str] = ["soil_temperature"]
     # Tree-model knobs (forest / gbt)
     n_estimators: int = 300
     max_depth: int | None = None
@@ -48,5 +51,6 @@ class IrrigationConfig(BaseModel):
     layers: int = 2
     lr: float = 1e-3
     epochs: int = 50
+    batch_size: int = 128
     # Decision layer: recommend irrigation when predicted moisture crosses this.
     irrigate_below: float = 25.0

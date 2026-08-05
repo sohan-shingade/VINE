@@ -1,12 +1,40 @@
-# Hypothesis: a ResNet-50 fine-tuned on 7-channel patches (RGB+NIR+RedEdge+
-# NDVI+NDRE) classifies plant stress better than NDVI-threshold pseudo-labels.
+# D3 pseudo-label training run: ResNet-50 fine-tuned on patches whose weak
+# labels are tertiles of patch mean NDVI. This validates the training pipeline;
+# it does not demonstrate stress detection. See
+# docs/models/plant-health/cnn-pseudolabel.md.
+#
+# Channel set: the proposal's target input is 7 channels
+# (R,G,B,NIR,RedEdge,NDVI,NDRE). The 2026-06-01 Pix4DFields products downloaded
+# locally are two single-band index rasters, so this run uses the two channels
+# that exist. The adapter in vine.d3_vision.model handles any channel count.
 task: stress
 backbone: resnet50
-in_channels: 7
-num_classes: 3        # healthy | mild | severe
+in_channels: 2
+num_classes: 3
 patch_size: 256
-batch_size: 32
+batch_size: 16
 lr: 0.0003
-epochs: 30
+weight_decay: 0.0001
+epochs: 8
 pretrained: true
-pseudo_label_ndvi_threshold: 0.4
+seed: 42
+
+acquisition: "2026-06-01"
+blocks_path: data/raw/imagery/IHV-2026-05-26.kmz
+channels:
+  - name: NDVI
+    raster: data/raw/imagery/rasters/NDVI.data.tif
+    band: 1
+  - name: NDRE
+    raster: data/raw/imagery/rasters/NDRE.data.tif
+    band: 1
+label_channel: NDVI
+label_quantiles: [0.3333333333333333, 0.6666666666666666]
+class_names: ["stressed", "mid", "healthy"]
+max_patches_per_block: 32
+min_valid_fraction: 0.98
+val_block_fraction: 0.25
+flip_augment: true
+patch_cache: data/processed/d3_patches_2026-06-01.npy
+checkpoint_path: models/d3_vision/cnn_pseudolabel.pt
+mlflow_experiment: d3_vision

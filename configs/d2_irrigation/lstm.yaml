@@ -1,6 +1,9 @@
 # Hypothesis: an LSTM encoder-decoder captures nonlinear soil-moisture dynamics
 # better than ARIMA/Prophet, improving MAE at the 24h/48h horizons.
 # Baseline to beat: configs/d2_irrigation/naive.yaml + the ridge/classical runs.
+# epochs is 20, reduced from the proposal sketch's 50 so the full CPU run of
+# 5 folds by 4 horizons finishes in roughly 15 minutes (about 4 s per epoch
+# on the largest fold at 48 h).
 model: lstm
 device: SE01-LS-1
 target: soil_water
@@ -10,5 +13,6 @@ window_h: 72
 hidden: 128
 layers: 2
 lr: 0.001
-epochs: 50
+epochs: 20
+batch_size: 128
 irrigate_below: 25.0

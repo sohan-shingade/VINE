@@ -41,6 +41,7 @@ nav:
       - Overview: models/index.md
       - D2 persistence: models/irrigation/persistence.md
       - D3 stress screening: models/plant-health/stress-screening.md
+      - D3 CNN on pseudo-labels (pipeline validation): models/plant-health/cnn-pseudolabel.md
       - D4 GDD exploration (not a model): models/harvest/gdd-exploration.md
       - Template: models/_template.md
   - Decisions (ADRs):
@@ -59,6 +60,7 @@ nav:
       - Overview: devlog/index.md
       - 2026-07-23 — D2, D3 & serving: devlog/2026-07-23-d2-d3-serving.md
       - 2026-08-05 — Final push: devlog/2026-08-05-final-push.md
+      - "2026-08-05: June in review": devlog/2026-08-05-june-in-review.md
   - Reports:
       - Reproducible final evaluation (2026-08-05): reports/2026-08-05-final-evaluation.md
       - D4 GDD phenology exploration (2026-08-04): reports/2026-08-04-d4-gdd-exploration.md

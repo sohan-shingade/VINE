@@ -26,6 +26,8 @@ from vine.d2_irrigation.models import (
     make_arima,
     make_forest,
     make_gbt,
+    make_lstm,
+    make_prophet,
     make_ridge,
     make_water_balance,
 )
@@ -122,6 +124,31 @@ def run_experiment(
                 X,
                 y,
                 make_arima((p, d, q), horizon=h, target_col=cfg.target),
+                cfg.n_folds,
+                purge=h - 1,
+            )
+        elif cfg.model == "prophet":
+            preds["prophet"] = walk_forward(
+                X,
+                y,
+                make_prophet(horizon=h, regressors=tuple(cfg.prophet_regressors)),
+                cfg.n_folds,
+                purge=h - 1,
+            )
+        elif cfg.model == "lstm":
+            preds["lstm"] = walk_forward(
+                X,
+                y,
+                make_lstm(
+                    horizon=h,
+                    features=tuple(cfg.features),
+                    window=cfg.window_h,
+                    hidden=cfg.hidden,
+                    layers=cfg.layers,
+                    lr=cfg.lr,
+                    epochs=cfg.epochs,
+                    batch_size=cfg.batch_size,
+                ),
                 cfg.n_folds,
                 purge=h - 1,
             )

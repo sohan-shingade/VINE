@@ -6,7 +6,8 @@ The generator is clean-clone reproducible after ``dvc pull``:
 - D2 is recomputed from the DVC-pinned sensor and weather snapshots with the
   current package APIs and checked-in YAML configs.
 - D3 is rendered from the retained screening-result artifact. It does not open
-  or download the multi-gigabyte source rasters.
+  or download the multi-gigabyte source rasters. The concern map paints the
+  DVC-pinned block-polygon KMZ with ranks from that same artifact.
 
 No network access, MLflow run directory, or hand-transcribed metric is used.
 
@@ -23,10 +24,13 @@ import pandas as pd
 
 from vine.common.config import load_config, settings
 from vine.common.seed import seed_everything
+from vine.d1_pipeline.geo import load_blocks_kmz
+from vine.d2_irrigation import baselines
 from vine.d2_irrigation.config import IrrigationConfig
 from vine.d2_irrigation.data import load_soil_probe_frames
 from vine.d2_irrigation.experiment import run_experiment
 from vine.d2_irrigation.pooled import run_pooled_experiment
+from vine.d5_evaluation.walkforward import expanding_splits
 
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt  # noqa: E402
@@ -37,9 +41,11 @@ D3_RESULT_PATH = ASSETS / "d3_screening_result.csv"
 D3_REPORT_PATH = REPO_ROOT / "docs" / "reports" / "2026-08-05-d3-screening.md"
 D5_REPORT_PATH = REPO_ROOT / "docs" / "reports" / "2026-08-05-final-evaluation.md"
 CONFIG_DIR = REPO_ROOT / "configs" / "d2_irrigation"
+KMZ_PATH = REPO_ROOT / "data" / "raw" / "imagery" / "IHV-2026-05-26.kmz"
 DVC_INPUTS = (
     REPO_ROOT / "data" / "raw" / "sensors.dvc",
     REPO_ROOT / "data" / "raw" / "weather.dvc",
+    REPO_ROOT / "data" / "raw" / "imagery.dvc",
 )
 
 GREEN = "#2e7a4c"
@@ -132,6 +138,7 @@ def _require_offline_inputs() -> None:
     data_outputs = (
         settings.data_dir / "raw" / "sensors",
         settings.data_dir / "raw" / "weather",
+        KMZ_PATH,
     )
     missing.extend(path for path in data_outputs if not path.exists())
     if missing:
@@ -236,6 +243,52 @@ def build_d3_assets() -> pd.DataFrame:
     ax.set_title("Top 15 screening candidates for field review, 2026-06-01")
     _save(fig, "d3_top_ranked")
     return result
+
+
+def build_d3_concern_map(result: pd.DataFrame) -> None:
+    """Paint the 39 KMZ block polygons by screening concern rank.
+
+    A schematic polygon map, not an imagery overlay: geometry comes from the
+    pinned KMZ, color from the retained screening artifact. No raster is read.
+    """
+    from matplotlib.ticker import MaxNLocator
+
+    blocks = load_blocks_kmz(KMZ_PATH)
+    painted = (
+        blocks.merge(result[["block_id", "stress_candidate_rank"]], on="block_id", how="left")
+        .sort_values("block_id")
+        .reset_index(drop=True)
+    )
+    unmatched = sorted(painted.loc[painted["stress_candidate_rank"].isna(), "block_id"])
+    if unmatched:
+        raise ValueError(f"KMZ blocks missing from the screening artifact: {unmatched}")
+
+    fig, ax = plt.subplots(figsize=(7.2, 6.4))
+    painted.plot(
+        column="stress_candidate_rank",
+        cmap="Oranges_r",  # sequential, one hue: rank 1 (highest concern) is darkest
+        edgecolor=GREY,
+        linewidth=0.6,
+        ax=ax,
+        legend=True,
+        legend_kwds={"label": "concern rank (1 = highest concern)", "shrink": 0.75},
+    )
+    top = painted.sort_values(["stress_candidate_rank", "block_id"]).head(6)
+    for row in top.itertuples():
+        point = row.geometry.representative_point()
+        ax.annotate(
+            str(row.block_id),
+            (point.x, point.y),
+            ha="center",
+            va="center",
+            fontsize=8,
+            color="white",
+        )
+    ax.xaxis.set_major_locator(MaxNLocator(5))
+    ax.set_xlabel("longitude (°E)")
+    ax.set_ylabel("latitude (°N)")
+    ax.set_title("D3 screening concern rank by vineyard block, 2026-06-01 (schematic)")
+    _save(fig, "d3_concern_map")
 
 
 # ---------------------------------------------------------------------------
@@ -354,6 +407,46 @@ def build_pooled_assets(frames: dict[str, pd.DataFrame]) -> pd.DataFrame:
     fig.suptitle("Pooled models: fleet micro-average and worst-fold skill")
     _save(fig, "d5_pooled_fleet_skill")
     return fleet
+
+
+def build_pred_vs_actual_asset(frames: dict[str, pd.DataFrame]) -> tuple[str, str]:
+    """Plot the served persistence forecast against the actual target series.
+
+    Window: the most recent walk-forward holdout fold whose target is fully
+    observed (the final fold sits inside the fleet-wide late-June sensor gap).
+    Returns the window's (start, stop) dates for the report text.
+    """
+    cfg = _config("water_balance")
+    y = frames[cfg.device][cfg.target]
+    observed = [
+        test for _, test in expanding_splits(len(y), cfg.n_folds) if y.iloc[test].notna().all()
+    ]
+    if not observed:
+        raise ValueError(f"{cfg.device}: no fully observed holdout fold to plot")
+    window = observed[-1]
+    actual = y.iloc[window]
+
+    fig, ax = plt.subplots(figsize=(7.4, 3.4))
+    ax.plot(actual.index, actual.to_numpy(), color=INK, lw=1.3, label="actual")
+    for h, color, style in ((24, BLUE, "-"), (48, RED, (0, (4, 2)))):
+        pred = baselines.naive_persistence(y, h).iloc[window]
+        ax.plot(
+            pred.index,
+            pred.to_numpy(),
+            color=color,
+            lw=1.0,
+            ls=style,
+            label=f"persistence, {h} h ahead",
+        )
+    ax.set_ylabel(f"{cfg.target} (raw sensor units)")
+    ax.set_xlabel("target time (UTC)")
+    ax.set_title(
+        f"{cfg.device} soil moisture: actual vs served persistence forecast, 24 h and 48 h ahead"
+    )
+    ax.legend(fontsize=7.5, loc="upper right")
+    fig.autofmt_xdate(rotation=20, ha="right")
+    _save(fig, "d5_pred_vs_actual")
+    return str(actual.index.min().date()), str(actual.index.max().date())
 
 
 def write_d3_report(result: pd.DataFrame) -> None:
@@ -484,7 +577,12 @@ and it is the shortest path to the labels supervised D3 needs.
     D3_REPORT_PATH.write_text(text)
 
 
-def write_d5_report(water_balance: pd.DataFrame, fleet: pd.DataFrame) -> None:
+def write_d5_report(
+    water_balance: pd.DataFrame,
+    fleet: pd.DataFrame,
+    d3_result: pd.DataFrame,
+    pred_window: tuple[str, str],
+) -> None:
     h48 = water_balance[water_balance["horizon_h"] == 48].copy()
     wb_table = h48[
         [
@@ -523,6 +621,12 @@ def write_d5_report(water_balance: pd.DataFrame, fleet: pd.DataFrame) -> None:
     wb_high = h48["skill_vs_persistence_pct"].max()
     wb_worst_low = h48["skill_fold_min_pct"].min()
     wb_worst_high = h48["skill_fold_min_pct"].max()
+    d3_top_names = ", ".join(
+        d3_result[d3_result["quality_ok"]]
+        .sort_values(["stress_candidate_rank", "block_id"])
+        .head(6)["block_id"]
+    )
+    window_start, window_stop = pred_window
     text = f"""# Final D5 evaluation report
 
 **Deliverable:** D5 evaluation, feeding D2 irrigation · **Date:** 2026-08-05 ·
@@ -531,7 +635,9 @@ def write_d5_report(water_balance: pd.DataFrame, fleet: pd.DataFrame) -> None:
 Every D2 table below is recomputed offline by `scripts/generate_reports.py`. The build
 loads the five DVC-pinned soil-probe snapshots and pinned weather snapshot through
 `load_soil_probe_frames`, calls `seed_everything`, validates the checked-in YAML configs, and
-runs the current `run_experiment` and `run_pooled_experiment` package APIs. It has no dependency
+runs the current `run_experiment` and `run_pooled_experiment` package APIs. The
+predicted-versus-actual plot and the D3 concern map are drawn from the same pinned sensor
+snapshot and the pinned block-polygon KMZ. It has no dependency
 on `mlruns`, a run ID, network access, or raster downloads. The one exception is the
 "Water balance on real forecast vintages" section: those figures are quoted from the
 [D2 vintage validation report](2026-08-04-d2-vintage-validation.md), whose run needs the
@@ -540,8 +646,8 @@ archived-forecast snapshot rather than this offline path.
 Clean-clone reproduction:
 
 ```bash
-uv sync --extra notebooks --extra sensors
-uvx --from 'dvc[s3]' dvc pull data/raw/sensors.dvc data/raw/weather.dvc
+uv sync --extra notebooks --extra sensors --extra geo
+uvx --from 'dvc[s3]' dvc pull data/raw/sensors.dvc data/raw/weather.dvc data/raw/imagery.dvc
 uv run python scripts/generate_reports.py
 ```
 
@@ -560,6 +666,19 @@ uv run python scripts/generate_reports.py
 - **Worst-fold limit:** aggregate gains do not satisfy the promotion gate when worst-fold skill
   is negative. The table below reports worst folds at 48 hours; all four horizons are in the
   linked CSV.
+
+## The served forecast against reality
+
+![Actual soil moisture vs the served persistence forecast](assets/d5_pred_vs_actual.png)
+
+Persistence is the served forecaster, so this is what production output looks like: the
+forecast for target time t is the observation from 24 or 48 hours earlier, drawn here for
+SE01-LS-1 against the actual series. The window is the most recent
+fully observed walk-forward holdout fold ({window_start} to {window_stop}); the final fold
+sits inside the fleet-wide late-June sensor gap and is mostly unscorable, and gaps are
+flagged rather than imputed. The plot makes the bar concrete: on a drying curve the
+persistence forecast tracks the actual series shifted by the horizon, and that small offset
+is the MAE every challenger had to beat robustly and did not.
 
 ## Water balance: 48-hour per-probe evidence
 
@@ -602,6 +721,15 @@ Different `n` values reflect each estimator's valid-row policy; comparisons to p
 made on each model's own scorable rows. The full device-level recomputation is retained in
 [`assets/d5_pooled_results.csv`](assets/d5_pooled_results.csv).
 
+## Ablation scope
+
+Feature-ablation studies are only meaningful for models that shipped. The only shipped
+forecaster is persistence, which has no features to ablate: its prediction is the last
+observation and nothing else. The challenger evidence tables above serve as the model-level
+comparison instead. Every rejected family was scored against persistence on identical holdout
+rows under the same folds and purge, so removing a challenger's ingredients one at a time
+would only re-derive rejections this report already records.
+
 ## Alert-decision limits
 
 Precision/recall can look excellent when a probe spends most of the holdout on one side of the
@@ -615,6 +743,13 @@ The companion [D3 screening report](2026-08-05-d3-screening.md) is generated fro
 result artifact, not from raster downloads. It has no labels and claims no classification
 accuracy: 39 of 39 blocks pass the corrected polygon-interior coverage gate and are ordered
 for field review.
+
+![Vineyard blocks painted by screening concern rank](assets/d3_concern_map.png)
+
+The map paints the 39 block polygons from the pinned `IHV-2026-05-26.kmz` by screening
+concern rank, with the six top-ranked blocks ({d3_top_names}) labeled. It is a schematic
+polygon map, not an imagery overlay: geometry comes from the KMZ and color from the retained
+screening artifact, and no raster is opened to draw it.
 
 **D4 harvest timing is not evaluated.** No harvest dates, yield, Brix, pH, TA, or equivalent
 ground truth are available in the pinned inputs, so there is no honest D4 backtest to report.
@@ -637,6 +772,8 @@ def main() -> int:
 
     print("\nD3 retained-result assets:")
     d3_result = build_d3_assets()
+    print("\nD3 concern map (pinned KMZ + retained artifact):")
+    build_d3_concern_map(d3_result)
 
     print("\nLoading DVC-pinned sensor and weather snapshots:")
     frames = load_soil_probe_frames()
@@ -644,13 +781,15 @@ def main() -> int:
         raise ValueError(f"expected five soil probes from pinned snapshots, found {sorted(frames)}")
     print(f"  loaded {len(frames)} probes")
 
+    print("\nD5 predicted-vs-actual asset (served persistence forecast):")
+    pred_window = build_pred_vs_actual_asset(frames)
     print("\nD5 water-balance assets (recomputed):")
     water_balance = build_water_balance_assets(frames)
     print("\nD5 pooled GBT/ridge assets (recomputed):")
     fleet = build_pooled_assets(frames)
 
     write_d3_report(d3_result)
-    write_d5_report(water_balance, fleet)
+    write_d5_report(water_balance, fleet, d3_result, pred_window)
     print("\nWrote both Markdown reports from computed results")
     return 0
 

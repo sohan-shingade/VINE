@@ -3,7 +3,13 @@
 import numpy as np
 import pandas as pd
 
-from vine.d2_irrigation.models import make_arima, make_ridge, make_water_balance
+from vine.d2_irrigation.models import (
+    make_arima,
+    make_lstm,
+    make_prophet,
+    make_ridge,
+    make_water_balance,
+)
 from vine.d5_evaluation.walkforward import walk_forward
 
 
@@ -325,3 +331,139 @@ def test_water_balance_ignores_future_test_targets():
     poisoned.iloc[300:] += 1e6
     actual = model(X.iloc[:300], poisoned.iloc[:300], X.iloc[300:])
     np.testing.assert_allclose(actual, expected, equal_nan=True)
+
+
+def _daily_series(n=240, seed=6):
+    """Soil-moisture-like series with a clear daily cycle plus slow drift."""
+    rng = np.random.default_rng(seed)
+    idx = pd.date_range("2026-01-01", periods=n, freq="1h", tz="UTC")
+    hours = np.arange(n)
+    y = 30.0 + 3.0 * np.sin(2 * np.pi * hours / 24) - 0.005 * hours + rng.normal(0, 0.1, n)
+    return pd.Series(y, index=idx)
+
+
+def test_prophet_smoke_predicts_and_masks_missing_regressor():
+    """Prophet fits on the training series with a lagged regressor and predicts
+    every test row whose regressor is present; a NaN regressor row stays NaN."""
+    y = _daily_series()
+    h = 6
+    temp = pd.Series(20 + 2 * np.sin(2 * np.pi * np.arange(len(y)) / 24), index=y.index)
+    X = pd.DataFrame({"soil_water": y.shift(h), "soil_temperature": temp.shift(h)}, index=y.index)
+    X.iloc[210, X.columns.get_loc("soil_temperature")] = np.nan
+    preds = make_prophet(horizon=h, regressors=("soil_temperature",))(
+        X.iloc[:200], y.iloc[:200], X.iloc[200:]
+    )
+    assert len(preds) == 40
+    assert np.isnan(preds[10])  # row 210 overall: missing regressor, never imputed
+    assert np.isfinite(np.delete(preds, 10)).all()
+
+
+def test_prophet_returns_nan_when_training_too_short():
+    y = _daily_series(n=60)
+    h = 6
+    X = pd.DataFrame({"soil_water": y.shift(h)}, index=y.index)
+    preds = make_prophet(horizon=h)(X.iloc[:15], y.iloc[:15], X.iloc[15:])
+    assert len(preds) == 45
+    assert np.isnan(preds).all()  # 15 rows < the 20-row minimum to fit
+
+
+def test_prophet_walk_forward_purge_blocks_post_decision_poison():
+    """The first fold forecast must be invariant to values after its anchor
+    (same poison-tail pattern as the ARIMA causality test)."""
+    h = 6
+    min_train = 80
+
+    def run(series: pd.Series) -> pd.Series:
+        X = pd.DataFrame({"soil_water": series.shift(h)}, index=series.index)
+        return walk_forward(
+            X,
+            series,
+            make_prophet(horizon=h, regressors=("soil_water",)),
+            n_folds=1,
+            min_train=min_train,
+            purge=h - 1,
+        )
+
+    clean = _daily_series(n=160, seed=7)
+    poisoned = clean.copy()
+    poisoned.iloc[min_train - h + 1 :] += 1000.0
+
+    expected = run(clean)
+    actual = run(poisoned)
+    assert np.isfinite(expected.iloc[min_train])
+    # A leak would drag the forecast toward the +1000 poison plateau.
+    assert abs(actual.iloc[min_train] - expected.iloc[min_train]) < 1.0
+
+
+def _lstm_tiny(h: int, **kw):
+    defaults = dict(horizon=h, features=("soil_water",), window=8, hidden=8, layers=1, epochs=2)
+    defaults.update(kw)
+    return make_lstm(**defaults)
+
+
+def test_lstm_smoke_predicts_complete_windows_only():
+    """Rows whose input window is complete get a finite forecast; a window that
+    contains a sensor gap returns NaN (gaps are never imputed)."""
+    y = _daily_series(n=180, seed=8)
+    h = 3
+    X = pd.DataFrame({"soil_water": y.shift(h)}, index=y.index)
+    X.iloc[150, 0] = np.nan  # one missing decision-time observation
+    preds = _lstm_tiny(h)(X.iloc[:140], y.iloc[:140], X.iloc[140:])
+    assert len(preds) == 40
+    # Windows ending on rows 150..157 all contain the NaN at row 150.
+    assert np.isnan(preds[10:18]).all()
+    assert np.isfinite(np.delete(preds, np.arange(10, 18))).all()
+    finite = preds[np.isfinite(preds)]
+    assert np.abs(finite - y.iloc[140:][np.isfinite(preds)].to_numpy()).mean() < 5.0
+
+
+def test_lstm_returns_nan_when_training_too_short():
+    y = _daily_series(n=60, seed=9)
+    h = 3
+    X = pd.DataFrame({"soil_water": y.shift(h)}, index=y.index)
+    preds = _lstm_tiny(h)(X.iloc[:20], y.iloc[:20], X.iloc[20:])
+    assert len(preds) == 40
+    assert np.isnan(preds).all()  # fewer complete windows than min_samples
+
+
+def test_lstm_ignores_values_past_the_first_test_anchor():
+    """Poison-tail causality: training labels and inputs after row 0's decision
+    time must not change row 0's forecast. Training is truncated to the labels
+    row 0 may see, and its window ends at its own decision-time observation, so
+    the two runs must match exactly (seeded, deterministic on CPU)."""
+    h = 6
+    n_train = 100
+    clean = _daily_series(n=160, seed=10)
+    poisoned = clean.copy()
+    poisoned.iloc[n_train - h + 1 :] += 1000.0  # everything past row 0's anchor
+
+    def run(series: pd.Series) -> np.ndarray:
+        X = pd.DataFrame({"soil_water": series.shift(h)}, index=series.index)
+        return _lstm_tiny(h)(X.iloc[:n_train], series.iloc[:n_train], X.iloc[n_train:])
+
+    expected = run(clean)
+    actual = run(poisoned)
+    assert np.isfinite(expected[0])
+    assert abs(actual[0] - expected[0]) < 1e-6
+
+
+def test_lstm_walk_forward_gap_rows_are_nan_then_finite():
+    """Under walk_forward with purge=h-1 the h-1 purged rows are physically
+    missing, so the first window-1 test rows of the fold cannot form a complete
+    window and must be NaN; later rows must be finite."""
+    h = 6
+    min_train = 80
+    window = 8
+    y = _daily_series(n=160, seed=11)
+    X = pd.DataFrame({"soil_water": y.shift(h)}, index=y.index)
+    preds = walk_forward(
+        X,
+        y,
+        _lstm_tiny(h, window=window),
+        n_folds=1,
+        min_train=min_train,
+        purge=h - 1,
+    )
+    fold = preds.iloc[min_train:]
+    assert fold.iloc[: window - 1].isna().all()
+    assert fold.iloc[window - 1 :].notna().all()

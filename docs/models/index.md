@@ -12,10 +12,10 @@ command, starting from [`_template.md`](_template.md).
 | Persistence + threshold | D2 irrigation | Shipped champion | [Card](irrigation/persistence.md) |
 | Water-balance correction | D2 irrigation | Research; rejected by the worst-fold gate on real forecast vintages. No card, because it did not ship | [Vintage validation report](../reports/2026-08-04-d2-vintage-validation.md) |
 | NDVI/NDRE stress screening | D3 plant health | Engineering artifact; corrected 39-block screen current | [Card](plant-health/stress-screening.md) |
+| ResNet-50 on NDVI pseudo-labels | D3 plant health | Pipeline validation on pseudo-labels; does not ship. Labels are derived from the imagery, so the run shows the training path works, not that stress is detectable | [Card](plant-health/cnn-pseudolabel.md) |
 | GDD phenology exploration | D4 harvest | **Not a model**: label-free exploratory context; does not ship | [Card](harvest/gdd-exploration.md) |
 
 Cards will be added here as models are trained, e.g.:
 
 - `irrigation/lstm`, a soil-moisture forecaster (D2)
-- `cv/resnet50-stress`, a plant-stress classifier (D3)
 - `harvest/xgboost`, a harvest-readiness regressor (D4)

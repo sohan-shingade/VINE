@@ -3,15 +3,18 @@
 > **Single source of truth for "where are we."** Git-tracked so it survives any
 > session, machine, or context reset. **Any new session: read this first.**
 > Update it at the end of any session that changes status. Last updated:
-> **2026-08-05**. Phase: **all reachable deliverables landed; D2 water balance
-> validated on real forecasts and rejected; D3 corrected screen complete; D4
-> descoped to an exploratory slice**.
+> **2026-08-05 (evening)**. Phase: **all proposal-named models evaluated; NRP
+> cluster access live; D6 blocked only on the GitLab registry push**.
 
 ## TL;DR: resume here
 
-**D1 complete; D2 closed with persistence served; D3 screening artifact is
-current; D4 descoped-exploratory; D5/D7 reports final; D6 blocked only on a
-kubeconfig (2026-08-05).**
+**D1 complete; D2 closed with persistence served after 11 rejected challenger
+families (Prophet and LSTM now included); D3 screening artifact current plus a
+pseudo-label CNN pipeline-validation run; D4 descoped-exploratory; D5/D7
+reports final with the June devlog gap filled; D6 has live cluster access
+(namespace `ihv-jupyterlab`), base resources applied, data seeded, and a
+smoke-tested amd64 image, waiting only on a GitLab project for the registry
+push (2026-08-05).**
 
 The last open D2 caveat is now closed. Water balance was rerun on real
 archived forecast vintages (Open-Meteo Previous Runs, `ceil(h/24)`-day lag,
@@ -23,8 +26,10 @@ is ever active**. Four 6/12 h cells are exactly 0.000, because the correction
 never fires there and water balance is identical to persistence. The
 ADR-0003 gate therefore fails. **Persistence remains the served D2 forecaster** and
 water balance stays research with a sharper open question: per-fold
-forecast-bust robustness rather than a new model family. Nine challenger
-families have now been evaluated and rejected. The pooled and water-balance
+forecast-bust robustness rather than a new model family. Eleven challenger
+families have now been evaluated and rejected; Prophet and LSTM, the last two
+proposal-named families, joined the list on 2026-08-05 (Prophet aggregate skill
+−14.7 to −2.5%, LSTM −4.2 to −8.3%, neither positive anywhere). The pooled and water-balance
 rungs ran on all five probes, the earlier per-sensor rungs on four
 (SE0X-LS-1 was only recovered on 2026-07-09).
 
@@ -46,14 +51,20 @@ Winkler window starts Apr 1 instead. That is quantitative proof that the bands
 need local calibration from the mentor's harvest records.
 
 D6 serves persistence + threshold locally with typed quality/freshness
-responses; a real stale snapshot correctly suppresses advice. Cluster deploy
-needs only the kubeconfig. Current local gate: **186 tests passed**; Ruff,
-formatting, mypy, strict MkDocs, codemap regeneration, and deterministic report
+responses; a real stale snapshot correctly suppresses advice. Cluster access is
+now live: kubeconfig + kubelogin work, namespaces `ihv-jupyterlab` and
+`ihv-llm` are usable, the base ConfigMap and both CephFS PVCs are applied and
+Bound, raw sensor and weather data are seeded onto the data PVC, and a
+smoke-tested linux/amd64 image is built locally. The only missing step is a
+GitLab project to push the image to. Current local gate: **213 tests passed**;
+Ruff, formatting, mypy, strict MkDocs, codemap regeneration, and deterministic report
 regeneration are clean. The sensor and weather snapshots (including the archived
 forecast-vintage parquet) are re-pinned and pushed to the `nrp` remote; the
 ~7.8 GB of D3 rasters under `data/raw/imagery/rasters/` are a local working
 download and are deliberately **not** pinned. Remaining human blockers:
-D3 labels, harvest records, kubeconfig, pressure semantics, and token rotation.
+D3 labels, harvest records, the GitLab `vine` project, pressure semantics, and
+the new InfluxDB token (the old one was rotated on 2026-08-05; all sensor reads
+now return 401 until the mentor hands off the replacement).
 
 ### Previous state (2026-07-23)
 
@@ -94,7 +105,7 @@ dotenv reads them as the value (bit us via `.env.example`'s NDP line; now fixed)
 
 | Resource | Endpoint | Access | Verified |
 |----------|----------|--------|----------|
-| Sensors (InfluxDB) | `https://nrp-thingsboard-influxdb.nrp-nautilus.io` org `Iron Horse Vineyards`, bucket `ihv` | Flux + `VINE_INFLUX_TOKEN` | ✅ **token restored + re-verified 2026-07-23**; bounded EM500-PP profile added locally (22,256 raw observations; semantics unverified) |
+| Sensors (InfluxDB) | `https://nrp-thingsboard-influxdb.nrp-nautilus.io` org `Iron Horse Vineyards`, bucket `ihv` | Flux + `VINE_INFLUX_TOKEN` | ⚠️ **token ROTATED, observed 2026-08-05**: every device read returns 401 with the old token. This resolves mentor Q5 (the publicly committed token is dead) but blocks fresh ingest until the new token is handed off securely. Bounded EM500-PP profile added locally earlier (22,256 raw observations; semantics unverified) |
 | NRP S3 (Pool West) | `https://s3-west.nrp-nautilus.io`, bucket `ihv-vine` | `AWS_ACCESS_KEY_ID/SECRET` in `.env` | ✅ **keys re-issued + verified 2026-07-08** (list on `ihv-vine` HTTP 200) |
 | DVC remote | `s3://ihv-vine/dvc` on NRP S3 | `.dvc/config` + creds in `.dvc/config.local` (gitignored) | ✅ **restored 2026-07-08**: creds rewritten, fresh snapshots pinned (`sensors` 1.04 M rows, `weather`, `imagery` 61 MB) and pushed (19 objects) |
 | NDP catalog API | `https://nationaldataplatform.org/catalog/api/3/action/` | public, no auth | ✅ found the 2 IHV datasets |
@@ -102,7 +113,7 @@ dotenv reads them as the value (bit us via `.env.example`'s NDP line; now fixed)
 | Imagery files | `https://nextcloud.nrp-nautilus.io/s/ieAqEKDDKeYq9q4` | public share | ✅ **back up 2026-07-06** (`maintenance:false`, WebDAV browsable, downloaded a real 10.9 MB JPEG 5280×3956); use WebDAV `public.php/webdav/` with share token as user |
 | Weather (historical) | `https://archive-api.open-meteo.com/v1/archive` | public, no key | ✅ daily tmax/tmin/precip/ET₀ at vineyard coords |
 | NRP managed LLM | `https://ellm.nrp-nautilus.io/v1` | `VINE_NRP_LLM_API_KEY` in `.env` | 🔑 worked 2026-06-16 (11 models); **key lost in wipe**, portal `/llmtoken/` (optional) |
-| Kubernetes (`ihv` ns) | Nautilus cluster | kubeconfig (not yet obtained) | ⬜ not set up; only needed to run jobs *on* NRP |
+| Kubernetes (Nautilus) | cluster `nautilus`, kubeconfig from `https://nrp.ai/config` | kubelogin (OIDC via CILogon) | ✅ **working 2026-08-05**: namespaces `ihv-jupyterlab` + `ihv-llm`, create rights for deployments/jobs in both; storage class `rook-cephfs` confirmed; ConfigMap + both PVCs applied and Bound; raw data seeded to the data PVC |
 
 Vineyard location: **38.457 N, −122.896 W** (Sebastopol, CA). Blocks seen in
 imagery: `Cd, H5, H4, E, H2, Q, Ce`.
@@ -132,12 +143,12 @@ winter/dormant; the useful growing-season flights are Aug (pre-harvest) + Oct
 |---|-------------|--------|-------|
 | — | Repo + Claude Code scaffold + wiki | ☑ | builds green: ruff/mypy/tests |
 | D1 | Data pipeline | ☑ | **all three reachable inputs done + live-verified**: sensor path (ingest→flags→features→weather/GDD), weather reader (historical, forecast, **and archived forecast vintages**), **imagery path** (WebDAV flight index → capture grouping → band download → NDVI) + **block alignment** (39 KMZ polygons, sensor→block join, windowed zonal stats with polygon-interior coverage). Historical records (input #3) remain a mentor Q, and matter only for D4 |
-| D2 | Irrigation models | ☑ | **Closed: persistence is the served forecaster.** Nine challenger families evaluated and rejected; the pooled and water-balance rungs ran on all five probes, the earlier rungs on four. Water balance was validated on **real archived forecast vintages**: the 48 h aggregate edge survives (+5.3…+13.5%), 24 h flips negative, worst-fold skill negative wherever the correction is active → not promoted, stays research. D6 serves persistence+threshold |
-| D3 | Plant-health CV | ☑ (label-free scope) | Corrected 39-block screen complete on real 2026-06-01 rasters: 39/39 pass the polygon-interior coverage gate, deterministic concern ranks retained as a versioned artifact and rendered offline. Supervised classification remains blocked on mentor-provided labels, which is a data blocker rather than unfinished code |
+| D2 | Irrigation models | ☑ | **Closed: persistence is the served forecaster.** Eleven challenger families evaluated and rejected, now including Prophet and LSTM (2026-08-05; neither positive at any horizon). Water balance was validated on **real archived forecast vintages**: the 48 h aggregate edge survives (+5.3…+13.5%), 24 h flips negative, worst-fold skill negative wherever the correction is active → not promoted, stays research. D6 serves persistence+threshold |
+| D3 | Plant-health CV | ☑ (label-free scope) | Corrected 39-block screen complete on real 2026-06-01 rasters: 39/39 pass the polygon-interior coverage gate, deterministic concern ranks retained as a versioned artifact and rendered offline. A pseudo-label CNN pipeline-validation run (ResNet-50, NDVI/NDRE channels, block-level split, val acc 0.806) proves the supervised training path end to end; its card states plainly it is not stress detection. Supervised classification remains blocked on mentor-provided labels |
 | D4 | Harvest timing | ☑ (descoped-exploratory) | No harvest/yield/Brix labels exist (input #3), so per ADR-0003 D4 is exploratory: a label-free GDD/Winkler phenology module with no learned parameters, plus a report and model card that state plainly it does not ship. Supervised D4 stays blocked on records |
 | D5 | Evaluation report | ☑ | Shared metrics, expanding walk-forward, per-fold skill, `h−1` training-label purge. Final report is regenerated offline from pinned snapshots with no MLflow or network dependency |
-| D6 | NRP deployment | ◐ | Local typed persistence API built/tested/containerized; stale-snapshot suppression verified. Cluster deploy needs only the kubeconfig |
-| D7 | Docs + devlog | ☑ | Model cards for all served/exploratory artifacts, roadmap, four reports, and the 2026-08-05 devlog; MkDocs builds strict |
+| D6 | NRP deployment | ◐ | Local typed persistence API built/tested/containerized; stale-snapshot suppression verified. Cluster side: kubeconfig + RBAC live, ConfigMap + PVCs applied, data seeded, amd64 image built and smoke-tested. Blocked only on a GitLab `vine` project for the registry push |
+| D7 | Docs + devlog | ☑ | Model cards for all served/exploratory artifacts (incl. the D3 pseudo-label CNN), roadmap, four reports, and the devlog through June + 2026-08-05; MkDocs builds strict |
 
 ## Done log
 
@@ -390,6 +401,34 @@ winter/dormant; the useful growing-season flights are Aug (pre-harvest) + Oct
   Reports, model cards, and the devlog were written for all three; the D3 and
   D5 reports regenerate offline from retained artifacts.
 
+- **2026-08-05 (evening)**: **Prophet + LSTM evaluated (challengers 10 and 11),
+  D3 pseudo-label CNN run, June devlog written, NRP cluster access live, D6
+  staged to the registry-push step.** (1) **D2:** built `make_prophet` and
+  `make_lstm` in `d2_irrigation/models.py` (configs `prophet.yaml`,
+  `lstm.yaml`; poison-tail causality tests included) and ran both through the
+  same purged walk-forward harness. Prophet aggregate skill −14.7/−8.4/−4.9/−2.5%
+  and LSTM −4.2/−6.0/−6.2/−8.3% at 6/12/24/48 h; neither beats persistence
+  anywhere → rejected, challenger count now eleven, every model family named in
+  the proposal has been evaluated. (2) **D3:** pseudo-label CNN fallback
+  executed as the proposal specifies for the no-labels case: ResNet-50 with a
+  generic channel-adapter stem on NDVI/NDRE patches (2 channels; the other 5
+  are not in the local rasters), NDVI-tertile pseudo-labels computed on
+  training blocks only, block-level split. 1,209 patches / 39 blocks; val acc
+  0.806, macro F1 0.800 on 10 held-out blocks; all confusions
+  adjacent-tertile. Card frames it strictly as pipeline validation. Checkpoint
+  gitignored. (3) **D5/D7:** predicted-vs-actual and D3 concern-map figures
+  generated deterministically (byte-identical across runs), ablation-scope
+  paragraph added, June devlog gap filled
+  (`docs/devlog/2026-08-05-june-in-review.md`). (4) **D6/NRP:** kubeconfig +
+  kubelogin installed, CILogon auth completed, RBAC verified in
+  `ihv-jupyterlab` and `ihv-llm`; ConfigMap + 20Gi CephFS PVCs applied and
+  Bound; 11.3 MB of raw sensor/weather data seeded onto the data PVC;
+  CronJob manifest fixed to the real namespace; linux/amd64 image built (via
+  docker-buildx) and smoke-tested, including the stale-snapshot suppression
+  path. Push blocked only on a GitLab project. (5) **Observed:** InfluxDB
+  token rotated (all device reads 401), which closes mentor Q5; a new token is
+  needed for fresh ingest. Gate: **213 tests passed**, mkdocs strict clean.
+
 ## Open questions for mentor
 
 1. **Historical records** (harvest dates, yields, irrigation logs): do they exist,
@@ -401,12 +440,15 @@ winter/dormant; the useful growing-season flights are Aug (pre-harvest) + Oct
    should we sort by GPS-vs-polygon ourselves? Is STAC going to be re-indexed
    (its block attribution predates a re-sort and its inventory ends 2026-01-08)?
 3. **Labeled imagery** for plant stress/pest (D3): does any exist?
-4. **NRP access**: sponsor my kubeconfig for namespace `ihv`; confirm storage
-   classes + GPU reservation process.
-5. **Security**: the InfluxDB token is committed in the public starter repo;
-   rotate? **(Now demonstrated on 2026-07-08: we recovered our lost token from it
-   in minutes, and so can anyone else. When rotated, hand off the new one
-   securely.)**
+4. ~~NRP access~~ **Resolved 2026-08-05:** kubeconfig obtained from
+   `https://nrp.ai/config`, kubelogin OIDC auth works, and namespaces
+   `ihv-jupyterlab` + `ihv-llm` grant create rights. Storage class
+   `rook-cephfs` confirmed via `kubectl get sc`. **Remaining:** a GitLab
+   project (suggested name `vine`, under the `ihv` group) so images can be
+   pushed to `gitlab-registry.nrp-nautilus.io`.
+5. **Security**: ~~rotate the InfluxDB token~~ **Rotated, observed 2026-08-05**
+   (all reads with the old token now 401). Good. Remaining: hand off the new
+   token securely (never commit it) so scheduled ingest can resume.
 6. ~~Storage outage / migration?~~ **Resolved 2026-07-02:** it was the announced
    Ceph upgrade (July 2, 10:00 to 16:00 Pacific, CephFS/RBD/S3); NextCloud itself
    was fixed 2026-06-24 per Nautilus Support. No migration; creds fine. Monitor
@@ -417,18 +459,22 @@ winter/dormant; the useful growing-season flights are Aug (pre-harvest) + Oct
 Every remaining item needs a human input. There is no blocked-on-code work left
 in D1 to D5 or D7.
 
-1. **D6 cluster deployment** is the only unfinished deliverable. It needs the
-   kubeconfig for namespace `ihv`, storage-class/PVC confirmation, an immutable
-   image published to the GitLab registry, and a fresh sensor snapshot. The
-   local non-root image and the stale-data suppression path are already verified.
-2. **D3 labels**: field-reviewed plant-health labels. The fastest source is a
+1. **D6 cluster deployment** is the only unfinished deliverable, and it is one
+   step from done. Cluster access, RBAC, ConfigMap, PVCs, seeded data, and a
+   smoke-tested amd64 image all exist. Needed: create a GitLab project named
+   `vine` (under `gitlab.nrp-nautilus.io/ihv` if permitted), mint a deploy
+   token, `docker login` + push the image, substitute the tag into
+   `k8s/d6_serving/irrigation-deployment.yaml`, and `kubectl apply -n
+   ihv-jupyterlab`. Afterwards delete the `vine-data-seed` helper pod.
+2. **New InfluxDB token**: the rotation landed, so fresh ingest (and the D1
+   CronJob's `vine-secrets` Secret) waits on the replacement token from the
+   mentor. Weather ingest still works keyless.
+3. **D3 labels**: field-reviewed plant-health labels. The fastest source is a
    field check of the top-ranked blocks in the current screening artifact
    (H6, L, J1, J2, P, Q); agreement or disagreement is itself the first label set.
-3. **D4 harvest records**: harvest dates, yields, Brix/pH/TA, irrigation logs.
+4. **D4 harvest records**: harvest dates, yields, Brix/pH/TA, irrigation logs.
    Now with a concrete first use: the GDD exploration shows literature véraison
    bands are demonstrably wrong for this site, so local calibration needs records.
-4. **Security:** rotate the publicly exposed InfluxDB token, then hand off the
-   new one securely. The optional managed LLM token is not required.
 5. **EM500-PP semantics**: unit, active direction, served block, and ground-truth
    meaning of the 22,256 preserved pressure observations. Until confirmed it is
    not used as an irrigation-event label.

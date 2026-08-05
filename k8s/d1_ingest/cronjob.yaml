@@ -1,11 +1,11 @@
-# D1 — scheduled sensor ingestion in the `ihv` namespace. Pulls InfluxDB ->
+# D1 — scheduled sensor ingestion in the `ihv-jupyterlab` namespace. Pulls InfluxDB ->
 # writes Parquet snapshots to a CephFS PVC. The InfluxDB token comes from a
 # K8s Secret (created once, see docs/guides/nrp-setup.md) — never inlined.
 apiVersion: batch/v1
 kind: CronJob
 metadata:
   name: vine-ingest
-  namespace: ihv
+  namespace: ihv-jupyterlab
 spec:
   schedule: "0 * * * *"        # hourly
   concurrencyPolicy: Forbid

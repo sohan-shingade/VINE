@@ -174,6 +174,35 @@ def test_arima_e2e_smoke():
     assert (results.loc[results["model"] == "arima", "n"] > 0).all()
 
 
+def test_prophet_e2e_smoke():
+    """Small frame, one horizon, two folds — checks the harness wiring
+    (walk_forward -> make_prophet -> scored like every other model)."""
+    frame = _daily_cycle_frame(n_hours=24 * 8)
+    cfg = IrrigationConfig(model="prophet", horizons_h=[6], n_folds=2)
+    results = run_experiment(frame, cfg)
+    assert "prophet" in set(results["model"])
+    assert (results.loc[results["model"] == "prophet", "n"] > 0).all()
+
+
+def test_lstm_e2e_smoke():
+    """Tiny LSTM through the full harness: fold-gap rows come back NaN, the
+    rest are scored on the shared valid rows like every other model."""
+    frame = _daily_cycle_frame(n_hours=24 * 8)
+    cfg = IrrigationConfig(
+        model="lstm",
+        horizons_h=[6],
+        n_folds=2,
+        window_h=8,
+        hidden=8,
+        layers=1,
+        epochs=2,
+        batch_size=32,
+    )
+    results = run_experiment(frame, cfg)
+    assert "lstm" in set(results["model"])
+    assert (results.loc[results["model"] == "lstm", "n"] > 0).all()
+
+
 def test_vintage_weather_source_requires_and_uses_vintages():
     """weather_source: vintage refuses to run without a vintages frame, and
     with one it fills the `_next_{h}h` drivers from the archived forecasts

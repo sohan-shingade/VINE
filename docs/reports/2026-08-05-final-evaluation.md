@@ -6,7 +6,9 @@
 Every D2 table below is recomputed offline by `scripts/generate_reports.py`. The build
 loads the five DVC-pinned soil-probe snapshots and pinned weather snapshot through
 `load_soil_probe_frames`, calls `seed_everything`, validates the checked-in YAML configs, and
-runs the current `run_experiment` and `run_pooled_experiment` package APIs. It has no dependency
+runs the current `run_experiment` and `run_pooled_experiment` package APIs. The
+predicted-versus-actual plot and the D3 concern map are drawn from the same pinned sensor
+snapshot and the pinned block-polygon KMZ. It has no dependency
 on `mlruns`, a run ID, network access, or raster downloads. The one exception is the
 "Water balance on real forecast vintages" section: those figures are quoted from the
 [D2 vintage validation report](2026-08-04-d2-vintage-validation.md), whose run needs the
@@ -15,8 +17,8 @@ archived-forecast snapshot rather than this offline path.
 Clean-clone reproduction:
 
 ```bash
-uv sync --extra notebooks --extra sensors
-uvx --from 'dvc[s3]' dvc pull data/raw/sensors.dvc data/raw/weather.dvc
+uv sync --extra notebooks --extra sensors --extra geo
+uvx --from 'dvc[s3]' dvc pull data/raw/sensors.dvc data/raw/weather.dvc data/raw/imagery.dvc
 uv run python scripts/generate_reports.py
 ```
 
@@ -35,6 +37,19 @@ uv run python scripts/generate_reports.py
 - **Worst-fold limit:** aggregate gains do not satisfy the promotion gate when worst-fold skill
   is negative. The table below reports worst folds at 48 hours; all four horizons are in the
   linked CSV.
+
+## The served forecast against reality
+
+![Actual soil moisture vs the served persistence forecast](assets/d5_pred_vs_actual.png)
+
+Persistence is the served forecaster, so this is what production output looks like: the
+forecast for target time t is the observation from 24 or 48 hours earlier, drawn here for
+SE01-LS-1 against the actual series. The window is the most recent
+fully observed walk-forward holdout fold (2026-06-05 to 2026-06-21); the final fold
+sits inside the fleet-wide late-June sensor gap and is mostly unscorable, and gaps are
+flagged rather than imputed. The plot makes the bar concrete: on a drying curve the
+persistence forecast tracks the actual series shifted by the horizon, and that small offset
+is the MAE every challenger had to beat robustly and did not.
 
 ## Water balance: 48-hour per-probe evidence
 
@@ -92,6 +107,15 @@ Different `n` values reflect each estimator's valid-row policy; comparisons to p
 made on each model's own scorable rows. The full device-level recomputation is retained in
 [`assets/d5_pooled_results.csv`](assets/d5_pooled_results.csv).
 
+## Ablation scope
+
+Feature-ablation studies are only meaningful for models that shipped. The only shipped
+forecaster is persistence, which has no features to ablate: its prediction is the last
+observation and nothing else. The challenger evidence tables above serve as the model-level
+comparison instead. Every rejected family was scored against persistence on identical holdout
+rows under the same folds and purge, so removing a challenger's ingredients one at a time
+would only re-derive rejections this report already records.
+
 ## Alert-decision limits
 
 Precision/recall can look excellent when a probe spends most of the holdout on one side of the
@@ -105,6 +129,13 @@ The companion [D3 screening report](2026-08-05-d3-screening.md) is generated fro
 result artifact, not from raster downloads. It has no labels and claims no classification
 accuracy: 39 of 39 blocks pass the corrected polygon-interior coverage gate and are ordered
 for field review.
+
+![Vineyard blocks painted by screening concern rank](assets/d3_concern_map.png)
+
+The map paints the 39 block polygons from the pinned `IHV-2026-05-26.kmz` by screening
+concern rank, with the six top-ranked blocks (H6, L, J1, J2, P, Q) labeled. It is a schematic
+polygon map, not an imagery overlay: geometry comes from the KMZ and color from the retained
+screening artifact, and no raster is opened to draw it.
 
 **D4 harvest timing is not evaluated.** No harvest dates, yield, Brix, pH, TA, or equivalent
 ground truth are available in the pinned inputs, so there is no honest D4 backtest to report.

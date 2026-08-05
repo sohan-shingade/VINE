@@ -1,0 +1,12 @@
+# Hypothesis: Prophet's daily+weekly seasonal decomposition, with decision-time
+# soil temperature as an external regressor, captures diurnal structure that a
+# flat persistence carry-forward cannot. One fit per fold on the target series;
+# regressor values are always the reading at decision time t-h. Baseline: naive.yaml.
+model: prophet
+device: SE01-LS-1
+target: soil_water
+features: [soil_water, soil_temperature, soil_conductivity]
+horizons_h: [6, 12, 24, 48]
+n_folds: 5
+prophet_regressors: [soil_temperature]
+irrigate_below: 25.0

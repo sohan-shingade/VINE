@@ -24,8 +24,9 @@ and deploy as FastAPI services on NRP Kubernetes (**D6**).
 
 The data pipeline (D1) is done and live-verified: 1.04 M sensor rows, weather +
 ET₀, and drone imagery aligned to all 39 vineyard blocks. The irrigation track
-(D2) is decided. Nine challenger families, including pooled cross-sensor and
-active water-balance experiments, were evaluated across five soil probes, and
+(D2) is decided. Eleven challenger families, including Prophet, LSTM, pooled
+cross-sensor, and active water-balance experiments, were evaluated across five
+soil probes, and
 none robustly beats the naive persistence forecast. Soil moisture is too
 autocorrelated at 6 to 48 h horizons. Two apparent wins were traced to
 evaluation bugs (a Kalman-filter causality leak and a single-fold aggregation
@@ -79,7 +80,7 @@ configs/        YAML experiment configs (source of truth for runs)
 docker/ k8s/    D6  container images + Nautilus manifests
 docs/           D7  the wiki (architecture, data, model cards, ADRs, devlog)
 scripts/        report/figure generation (matplotlib, from DVC-pinned data)
-tests/          pytest suite (186 tests, incl. forecast-causality guards)
+tests/          pytest suite (213 tests, incl. forecast-causality guards)
 ```
 
 ## Documentation

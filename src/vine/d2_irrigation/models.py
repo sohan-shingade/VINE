@@ -7,6 +7,8 @@ on real data (negative skill everywhere — see `docs/STATE.md` 2026-07-08).
 target's own dynamics directly rather than regressing on engineered features.
 Ships only if it beats persistence and seasonal-naive under walk-forward
 evaluation — run `vine train irrigation <config>` for the evidence.
+`make_prophet` and `make_lstm` complete the proposal's named model list
+(ARIMA, Prophet, LSTM) under the same walk-forward protocol and purge rules.
 """
 
 from __future__ import annotations
@@ -225,6 +227,228 @@ def make_water_balance(
             out[te] = anchor_te[te] + lam * _correction(model, X_test.loc[te], feats, precip, cap)
         elif te.any():
             out[te] = anchor_te[te]  # λ=0 -> exact persistence
+        return out
+
+    return fit_predict
+
+
+def make_prophet(
+    horizon: int = 1,
+    regressors: tuple[str, ...] = ("soil_temperature",),
+) -> FitPredict:
+    """Prophet fit_predict with daily+weekly seasonality and lagged regressors.
+
+    Fits one Prophet model per fold on the training series, with each named
+    regressor taken from the shifted feature frame, so a regressor value on the
+    row for target time t is the observation at decision time t-h. Test rows are
+    then predicted from their timestamps plus those decision-time regressors,
+    which keeps every input causal.
+
+    Causality argument: the model is fit once per fold, so every test row shares
+    the same training window and the window must be safe for the earliest test
+    row. Row 0 of the fold may only see labels up to original position
+    fold_start - horizon, so training labels are truncated there (a no-op under
+    the harness's purge=h-1, which already ends training at that position).
+    Later test rows could legally see slightly more history; giving up that
+    sliver keeps the fit single and provably causal.
+
+    Rows with a missing regressor come back NaN (gaps are never imputed), and a
+    fold with too little clean training data or a failed fit returns all NaN.
+    """
+
+    def fit_predict(X_train: pd.DataFrame, y_train: pd.Series, X_test: pd.DataFrame) -> np.ndarray:
+        import logging
+
+        from prophet import Prophet
+
+        # cmdstanpy logs one INFO line per chain per fit; silence the spam.
+        logging.getLogger("cmdstanpy").setLevel(logging.WARNING)
+        logging.getLogger("prophet").setLevel(logging.WARNING)
+
+        n_train, n_test = len(y_train), len(X_test)
+        out = np.full(n_test, np.nan)
+        fold_start = X_train.attrs.get(ORIGINAL_TRAIN_STOP_ATTR, n_train)
+        if not isinstance(fold_start, int) or fold_start < n_train:
+            fold_start = n_train
+        keep = min(n_train, fold_start - horizon + 1)  # labels row 0 may see
+        if keep <= 0:
+            return out
+
+        def naive_utc(index: pd.Index) -> pd.Index:
+            idx = pd.DatetimeIndex(index)
+            return idx.tz_localize(None) if idx.tz is not None else idx
+
+        regs = [r for r in regressors if r in X_train.columns and r in X_test.columns]
+        train = pd.DataFrame(
+            {"ds": naive_utc(y_train.index[:keep]), "y": y_train.to_numpy()[:keep]}
+        )
+        for r in regs:
+            train[r] = X_train[r].to_numpy()[:keep]
+        train = train.dropna()
+        if len(train) < 20:
+            return out  # too little signal to fit honestly
+
+        model = Prophet(
+            daily_seasonality=True,
+            weekly_seasonality=True,
+            yearly_seasonality=False,
+            uncertainty_samples=0,  # point forecasts only; skips interval sampling
+        )
+        for r in regs:
+            model.add_regressor(r)
+        try:
+            model.fit(train)
+        except Exception:
+            return out  # non-convergent fit, nothing honest to predict
+
+        future = pd.DataFrame({"ds": naive_utc(X_test.index)})
+        for r in regs:
+            future[r] = X_test[r].to_numpy()
+        ok = future.notna().all(axis=1).to_numpy()
+        if ok.any():
+            out[ok] = model.predict(future.loc[ok])["yhat"].to_numpy()
+        return out
+
+    return fit_predict
+
+
+def make_lstm(
+    horizon: int = 1,
+    features: tuple[str, ...] = ("soil_water", "soil_temperature", "soil_conductivity"),
+    window: int = 72,
+    hidden: int = 128,
+    layers: int = 2,
+    lr: float = 1e-3,
+    epochs: int = 50,
+    batch_size: int = 128,
+    min_samples: int = 32,
+) -> FitPredict:
+    """Encoder-decoder LSTM fit_predict over decision-time feature windows.
+
+    The shifted feature frame already encodes causality: the row for target
+    time t holds each feature's value at decision time t-h. A sample for row i
+    is therefore the `window` consecutive rows ending at i, which is exactly
+    the raw series over (i-h-window, i-h], all observed by row i's decision
+    time. The encoder LSTM reads that window; the decoder LSTM, initialized
+    with the encoder state, unrolls `horizon` steps feeding back its own output
+    and the final step is the h-step-ahead forecast.
+
+    Test windows may need rows from before the fold. Those are taken from
+    X_train by original position (via the recorded unpurged fold stop), and the
+    h-1 positions the purge physically removed stay NaN, so windows crossing
+    them return NaN rather than imputing. Any window containing a gap likewise
+    returns NaN; the harness scores every model on the shared valid rows.
+
+    Causality argument: the network is trained once per fold, so its weights
+    must be safe for the earliest test row, which may only see labels up to
+    original position fold_start - horizon. Training labels are truncated there
+    (a no-op under the harness's purge=h-1). Each prediction window ends at the
+    row's own decision-time observations, never later.
+
+    Inputs and the target are standardized with statistics computed from
+    training rows only. `seed_everything()` is called before training so the
+    fit is reproducible from config + seed. Runs on CPU.
+    """
+
+    def fit_predict(X_train: pd.DataFrame, y_train: pd.Series, X_test: pd.DataFrame) -> np.ndarray:
+        import torch
+        from torch import nn
+
+        from vine.common import seed_everything
+
+        n_train, n_test = len(y_train), len(X_test)
+        out = np.full(n_test, np.nan)
+        fold_start = X_train.attrs.get(ORIGINAL_TRAIN_STOP_ATTR, n_train)
+        if not isinstance(fold_start, int) or fold_start < n_train:
+            fold_start = n_train
+        cols = [c for c in features if c in X_train.columns and c in X_test.columns]
+        if not cols:
+            return out
+
+        # Feature rows laid out by original position; the purged tail stays NaN.
+        total = fold_start + n_test
+        grid = np.full((total, len(cols)), np.nan)
+        grid[:n_train] = X_train[cols].to_numpy(dtype=float)
+        grid[fold_start:] = X_test[cols].to_numpy(dtype=float)
+
+        # Standardization statistics from training rows only.
+        keep = min(n_train, fold_start - horizon + 1)  # labels row 0 may see
+        if keep <= 0:
+            return out
+        train_rows = grid[:keep]
+        mu = np.nanmean(train_rows, axis=0)
+        sd = np.nanstd(train_rows, axis=0)
+        sd = np.where(np.isfinite(sd) & (sd > 0), sd, 1.0)
+        mu = np.where(np.isfinite(mu), mu, 0.0)
+        y_np = y_train.to_numpy(dtype=float)[:keep]
+        y_ok = y_np[np.isfinite(y_np)]
+        if len(y_ok) == 0:
+            return out
+        y_mu, y_sd = float(y_ok.mean()), float(y_ok.std()) or 1.0
+
+        scaled = (grid - mu) / sd
+
+        # Training samples: complete windows ending at row i with a finite label.
+        idx = [
+            i
+            for i in range(window - 1, keep)
+            if np.isfinite(scaled[i - window + 1 : i + 1]).all() and np.isfinite(y_np[i])
+        ]
+        if len(idx) < min_samples:
+            return out  # too little clean history to train honestly
+
+        seed_everything()
+        Xt = torch.tensor(
+            np.stack([scaled[i - window + 1 : i + 1] for i in idx]), dtype=torch.float32
+        )
+        yt = torch.tensor((y_np[idx] - y_mu) / y_sd, dtype=torch.float32)
+
+        class Seq2Seq(nn.Module):
+            def __init__(self) -> None:
+                super().__init__()
+                self.encoder = nn.LSTM(len(cols), hidden, layers, batch_first=True)
+                self.decoder = nn.LSTM(1, hidden, layers, batch_first=True)
+                self.head = nn.Linear(hidden, 1)
+
+            def forward(self, x: torch.Tensor) -> torch.Tensor:
+                _, state = self.encoder(x)
+                step = torch.zeros(x.shape[0], 1, 1)
+                for _ in range(horizon):
+                    dec_out, state = self.decoder(step, state)
+                    step = self.head(dec_out)
+                return step[:, 0, 0]
+
+        model = Seq2Seq()
+        optim = torch.optim.Adam(model.parameters(), lr=lr)
+        loss_fn = nn.MSELoss()
+        model.train()
+        for _ in range(epochs):
+            perm = torch.randperm(len(idx))
+            for b in range(0, len(idx), batch_size):
+                sel = perm[b : b + batch_size]
+                optim.zero_grad()
+                loss = loss_fn(model(Xt[sel]), yt[sel])
+                loss.backward()
+                optim.step()
+
+        # Predict every test row whose window is complete; the rest stay NaN.
+        pred_rows = [
+            k
+            for k in range(n_test)
+            if fold_start + k - window + 1 >= 0
+            and np.isfinite(scaled[fold_start + k - window + 1 : fold_start + k + 1]).all()
+        ]
+        model.eval()
+        with torch.no_grad():
+            for b in range(0, len(pred_rows), batch_size):
+                ks = pred_rows[b : b + batch_size]
+                Xb = torch.tensor(
+                    np.stack(
+                        [scaled[fold_start + k - window + 1 : fold_start + k + 1] for k in ks]
+                    ),
+                    dtype=torch.float32,
+                )
+                out[ks] = model(Xb).numpy() * y_sd + y_mu
         return out
 
     return fit_predict

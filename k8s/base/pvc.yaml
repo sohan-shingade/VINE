@@ -10,7 +10,7 @@ spec:
   storageClassName: rook-cephfs   # CephFS — good for model checkpoints
   resources:
     requests:
-      storage: 50Gi
+      storage: 20Gi
 ---
 apiVersion: v1
 kind: PersistentVolumeClaim
@@ -21,4 +21,4 @@ spec:
   storageClassName: rook-cephfs
   resources:
     requests:
-      storage: 200Gi
+      storage: 20Gi
