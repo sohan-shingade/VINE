@@ -490,6 +490,32 @@ winter/dormant; the useful growing-season flights are Aug (pre-harvest) + Oct
   by water balance at 24/48 h. Gate: **288 tests passed**, mkdocs strict
   clean, codemap regenerated.
 
+- **2026-08-05 (late night, second entry)**: **Literature review positions the
+  D2 result. Persistence plus a threshold is what control theory prescribes for
+  this system class, and the ML literature reproduces our finding.** Nine
+  research agents surveyed control theory, California agronomy and regulation,
+  the ML/RL irrigation literature, and institutional programs. Key findings:
+  (1) event-triggered control theory (Åström & Bernhardsson 2002; Lipsa &
+  Martins 2011; Soleymani et al. 2023) proves threshold structure is optimal for
+  noisy first-order systems with direct state measurement, so D2's shipped
+  policy is the theoretically favored structure rather than a fallback. (2) The
+  best field-validated MPC beats soil-sensor threshold control by roughly 5
+  percent water, so the available margin above our baseline is small; the 40 to
+  50 percent savings figures in the literature are all against calendar
+  schedules. (3) In precision viticulture **no published study benchmarks
+  against persistence at all**; Deforce et al. (2024), the closest analogue
+  outside viticulture, finds an LSTM improves 5-day soil-water-potential MAE by
+  0.45 percent and is 4.65 percent worse on RMSE. (4) Geospatial foundation
+  models add nothing to soil-moisture regression (Kontogiorgakis et al. 2026:
+  R² 0.515 vs 0.514 for handcrafted features). (5) RL irrigation has never left
+  the simulator. (6) Sensor-network ML vineyard DSS is pilot-stage worldwide
+  with no exceptions found, the Iron Horse program included. Written up as
+  `docs/reports/2026-08-05-irrigation-control-review.md`; the model card gained
+  a literature-position bullet, and the unbacked "~10% water reduction" claim on
+  the home page is now attributed as a CENIC/NRP program target rather than a
+  measured result. No code or model change. Gate: **288 tests passed**, mkdocs
+  strict clean.
+
 ## Open questions for mentor
 
 1. **Historical records** (harvest dates, yields, irrigation logs): do they exist,
@@ -514,6 +540,18 @@ winter/dormant; the useful growing-season flights are Aug (pre-harvest) + Oct
    Ceph upgrade (July 2, 10:00 to 16:00 Pacific, CephFS/RBD/S3); NextCloud itself
    was fixed 2026-06-24 per Nautilus Support. No migration; creds fine. Monitor
    `https://nrp.ai/live` (or the Matrix room) for cluster news going forward.
+
+7. **Agronomy questions sharpened by the literature review** (see
+   `docs/reports/2026-08-05-irrigation-control-review.md` section 7.3). (a) Is
+   Iron Horse running a regulated-deficit program, and at what phenology-stage
+   targets? California practice is stage-staged, so a single season-long
+   threshold is inconsistent with how a wine-grape block is managed. (b) Is any
+   plant water status measured (pressure chamber, even weekly by hand)? That is
+   the variable the operative irrigation policy actually triggers on, and it is
+   the largest gap between VINE and the practice stack. (c) Soil texture and
+   effective rooting depth per probe, needed to check whether the 25.0 threshold
+   sits near the conventional allowable-depletion point. (d) Which blocks the
+   five probes are meant to represent, given 39 blocks.
 
 ## Next actions (when resuming)
 

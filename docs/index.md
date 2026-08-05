@@ -25,10 +25,14 @@ Supporting deliverables: **D1** shared data pipeline, **D5** evaluation report,
 ## Why it matters
 
 California agriculture faces water scarcity, climate variability, labor
-shortages, and rising costs. Iron Horse has already shown ~10% water reduction
-through data-driven irrigation. VINE pushes that further with ML models that
-operators actually use, and publishes open models + pipelines for the
-precision-agriculture research community.
+shortages, and rising costs. The CENIC and NRP precision-agriculture program at
+Iron Horse states a target of roughly 10% water reduction through data-driven
+irrigation; that figure is a program goal rather than a measured result, since
+no baseline or experimental design has been published for it (see the
+[irrigation control policy review](reports/2026-08-05-irrigation-control-review.md)).
+VINE's contribution is to put validated model evidence behind that program, and
+to publish open models + pipelines for the precision-agriculture research
+community.
 
 ## Start here
 
