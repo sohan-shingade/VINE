@@ -32,12 +32,33 @@ from vine.d2_irrigation.models import (
     make_water_balance,
 )
 from vine.d5_evaluation.metrics import mae, precision_recall, rmse
-from vine.d5_evaluation.walkforward import expanding_splits, skill, walk_forward
+from vine.d5_evaluation.walkforward import FitPredict, expanding_splits, skill, walk_forward
 
 log = get_logger(__name__)
 
 # Matches the horizon out of a `{stem}_next_{h}h` lead-time column name (see
 # `vine.d1_pipeline.pipeline.add_lead_time_features`).
+
+
+def _diurnal_fit_predict(pers: pd.Series, h: int) -> FitPredict:
+    """Bind the persistence anchor and horizon into a diurnal-drift fit_predict."""
+
+    def fit(X_tr: pd.DataFrame, y_tr: pd.Series, X_te: pd.DataFrame) -> np.ndarray:
+        return baselines.diurnal_drift(y_tr, pers[X_te.index], h).to_numpy()
+
+    return fit
+
+
+def _diurnal_temp_fit_predict(pers: pd.Series, temp: pd.Series, h: int) -> FitPredict:
+    """Same binding for the temperature-conditioned diurnal-drift variant."""
+
+    def fit(X_tr: pd.DataFrame, y_tr: pd.Series, X_te: pd.DataFrame) -> np.ndarray:
+        pred = baselines.diurnal_drift_temp(
+            y_tr, temp[y_tr.index], pers[X_te.index], temp.shift(h)[X_te.index], h
+        )
+        return pred.to_numpy()
+
+    return fit
 
 
 def run_experiment(
@@ -91,10 +112,21 @@ def run_experiment(
 
         # Features as known at decision time t-h, aligned to target time t.
         X = numeric[feature_columns].shift(h)
+        pers = baselines.naive_persistence(y, h)
         preds: dict[str, pd.Series] = {
-            "persistence": baselines.naive_persistence(y, h),
+            "persistence": pers,
             "drydown": baselines.drydown_trend(y, h),
             "seasonal_naive": baselines.seasonal_naive(y, h),
+            # Persistence plus the expected cumulative hour-of-day drift, fit in
+            # delta space on the training fold only (strictly causal via the
+            # same purged walk-forward as every learned model).
+            "diurnal_drift": walk_forward(
+                X,
+                y,
+                _diurnal_fit_predict(pers, h),
+                cfg.n_folds,
+                purge=h - 1,
+            ),
             "climatology": walk_forward(
                 X,
                 y,
@@ -103,6 +135,18 @@ def run_experiment(
                 purge=h - 1,
             ),
         }
+        if "soil_temperature" in numeric.columns:
+            # Same drift baseline with the change table conditioned on the
+            # decision-time soil temperature tercile; missing temperature rows
+            # fall back to the pooled table so the scorable rowset is unchanged.
+            temp = numeric["soil_temperature"]
+            preds["diurnal_drift_temp"] = walk_forward(
+                X,
+                y,
+                _diurnal_temp_fit_predict(pers, temp, h),
+                cfg.n_folds,
+                purge=h - 1,
+            )
         regressors = {
             "ridge": lambda: make_ridge(cfg.alpha),
             "forest": lambda: make_forest(cfg.n_estimators, cfg.max_depth),

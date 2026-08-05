@@ -1,0 +1,18 @@
+# Hypothesis: soil moisture is near a random walk in levels, yet its hourly
+# changes carry intraday seasonality: evapotranspiration pulls hardest in the
+# afternoon and relaxes overnight. Earlier time-of-day baselines controlled for
+# hour of day on LEVELS (hourly climatology, seasonal naive) and lost.
+# diurnal_drift is persistence plus the expected cumulative hour-of-day drift
+# estimated in delta space on the training fold only, from gap-free
+# consecutive-hour pairs. Seasonal naive ties persistence at 24 h and 48 h
+# because the diurnal cycle nets out over whole days, so the winnable cells are
+# expected at 6 h and 12 h. A second variant conditions the delta table on the
+# decision-time soil temperature tercile. model stays "naive" because both
+# variants run as always-on baselines in the shared harness. Baseline: naive.yaml.
+model: naive
+device: SE01-LS-1
+target: soil_water
+features: [soil_water, soil_temperature, soil_conductivity]
+horizons_h: [6, 12, 24, 48]
+n_folds: 5
+irrigate_below: 25.0

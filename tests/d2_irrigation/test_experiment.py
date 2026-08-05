@@ -28,8 +28,15 @@ def _daily_cycle_frame(n_hours: int = 24 * 30, seed: int = 0) -> pd.DataFrame:
 def test_results_table_shape_and_fair_n():
     cfg = IrrigationConfig(model="naive", horizons_h=[6, 24], n_folds=3)
     results = run_experiment(_daily_cycle_frame(), cfg)
-    assert set(results["model"]) == {"persistence", "drydown", "seasonal_naive", "climatology"}
-    assert len(results) == 4 * 2  # models x horizons
+    assert set(results["model"]) == {
+        "persistence",
+        "drydown",
+        "seasonal_naive",
+        "diurnal_drift",
+        "diurnal_drift_temp",
+        "climatology",
+    }
+    assert len(results) == 6 * 2  # models x horizons
     # fairness: every model scored on the same rows within a horizon
     for _, grp in results.groupby("horizon_h"):
         assert grp["n"].nunique() == 1
