@@ -6,7 +6,7 @@
 - **Architecture:** Naive persistence: every 6/12/24/48 h forecast equals the latest valid soil-moisture reading; a fixed threshold recommends irrigation below 25.0.
 - **Version / run:** Decision evidence is reproduced from YAML configs and DVC snapshots; historical exploratory runs also live in MLflow experiment `d2_irrigation`.
 - **Config:** `configs/d2_irrigation/naive.yaml`; local serving config `configs/d6_serving/irrigation.yaml`
-- **Author & date:** Sohan Shingade, 2026-07-23
+- **Author & date:** Sohan Shingade, 2026-08-05
 
 ## Intended use
 
@@ -26,7 +26,7 @@ Forecasts were evaluated at 6, 12, 24, and 48 hours. Missing readings and shared
 - **Protocol:** Expanding-window walk-forward evaluation on the chronological holdout half. Target-time-aligned learned models now purge the final `h-1` training labels at horizon `h`; persistence itself is a causal shift.
 - **Baselines and challengers:** Persistence was the floor and remained the champion after per-sensor ridge, ridge with perfect-forecast features, ridge-delta, ARIMA, drydown trend, random forest, gradient boosting, pooled cross-sensor models, and a water-balance weather-correction experiment.
 - **Observed performance:** On sensors whose holdouts cross the 25.0 threshold, persistence alert precision/recall is approximately 0.95–0.99. MAE increases from roughly 0.06–0.13 at 6 h to 0.29–0.52 at 48 h across the five probes.
-- **Water-balance status:** Research, not promoted. It has now been evaluated on **real archived forecast vintages** as well as the realized-weather oracle. The 48 h aggregate edge survives the switch (+5.3% to +13.5% across five probes, against +3.5% to +11.2% under the oracle), but 24 h skill flips negative on every probe (−2.8% to −8.1%) and worst-fold skill is negative on every probe at every horizon, so the promotion gate fails. See the [vintage validation report](../../reports/2026-08-04-d2-vintage-validation.md).
+- **Water-balance status:** Research, not promoted. It has now been evaluated on **real archived forecast vintages** as well as the realized-weather oracle. The 48 h aggregate edge survives the switch (+5.3% to +13.5% across five probes, against +3.5% to +11.2% under the oracle), but 24 h skill flips negative on every probe (−2.8% to −8.1%) and worst-fold skill is negative in every cell where the correction is ever active — four 6/12 h cells sit at exactly 0.000 because the correction never fires there — so the promotion gate fails. See the [vintage validation report](../../reports/2026-08-04-d2-vintage-validation.md).
 
 ## Limitations & caveats
 
@@ -35,7 +35,7 @@ Forecasts were evaluated at 6, 12, 24, and 48 hours. Missing readings and shared
 - The 25.0 threshold is an experimental decision rule and needs operator confirmation/calibration by block and sensor depth.
 - Simultaneous source gaps affected all devices, including a long 2026-06-24 to 2026-07-08 outage.
 - A stale reading can produce a numerically valid persistence forecast that is operationally unsafe. D6 therefore exposes freshness and suppresses recommendations when stale.
-- Water balance has been tested on both realized future weather and archived forecast vintages; under real forecasts it loses to persistence at 24 h and fails the worst-fold gate at every horizon. The remaining open question is per-fold robustness to forecast busts, not a new model family.
+- Water balance has been tested on both realized future weather and archived forecast vintages; under real forecasts it loses to persistence at 24 h and fails the worst-fold gate wherever the correction is active. The remaining open question is per-fold robustness to forecast busts, not a new model family.
 
 ## Ethical & operational considerations
 

@@ -70,9 +70,6 @@ The complete ranked output is
 
 No block was excluded. Every polygon interior is fully covered by valid pixels in both rasters, so the gate rejected nothing on this acquisition.
 
-Machine-readable detail is in
-[`assets/d3_low_coverage.csv`](assets/d3_low_coverage.csv).
-
 ## Limits
 
 - **This is a screening order, not a label.** Low indices can reflect phenology, background

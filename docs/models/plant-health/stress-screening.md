@@ -4,9 +4,9 @@
 
 - **Track / deliverable:** Plant health (D3)
 - **Architecture:** Label-free, same-acquisition per-block NDVI/NDRE distribution ranking; no neural network and no biological classifier.
-- **Version / run:** Corrected implementation verified on regression fixtures; no authoritative corrected real-data run artifact yet.
+- **Version / run:** Corrected implementation verified on regression fixtures and run on the real 2026-06-01 whole-vineyard rasters; the retained artifact is `d3_screening_result.csv` (SHA-256 in the [screening report](../../reports/2026-08-05-d3-screening.md)).
 - **Config:** `configs/d3_vision/stress_screening.yaml`
-- **Author & date:** Sohan Shingade, 2026-07-23
+- **Author & date:** Sohan Shingade, 2026-08-05
 
 ## Intended use
 

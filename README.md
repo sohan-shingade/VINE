@@ -1,7 +1,7 @@
 # 🍇 VINE — Vineyard Intelligence Network & Environment
 
 ![Python 3.11](https://img.shields.io/badge/python-3.11-3776AB?logo=python&logoColor=white)
-![Tests](https://img.shields.io/badge/tests-161%20passing-2ea44f)
+![Tests](https://img.shields.io/badge/tests-186%20passing-2ea44f)
 ![License: MIT](https://img.shields.io/badge/license-MIT-blue)
 ![GSoC 2026](https://img.shields.io/badge/GSoC-2026-fbbc05?logo=google&logoColor=white)
 
@@ -43,8 +43,8 @@ Since the midterm, three results landed. Water balance — D2's last open
 candidate — was rerun on **real archived forecast vintages** rather than
 realized future weather: its 48 h aggregate edge survives (+5.3% to +13.5%
 across five probes), but 24 h skill turns negative on every probe and
-worst-fold skill is negative everywhere, so it stays research and persistence
-stays served ([report](docs/reports/2026-08-04-d2-vintage-validation.md)). D3's
+worst-fold skill is negative wherever the correction is active, so it stays
+research and persistence stays served ([report](docs/reports/2026-08-04-d2-vintage-validation.md)). D3's
 corrected 39-block screen completed: **all 39 blocks pass** the polygon-interior
 coverage gate, superseding an earlier bounding-box-denominator artifact
 ([report](docs/reports/2026-08-05-d3-screening.md)). D4, still without harvest

@@ -117,7 +117,8 @@ worst-fold robustness, which no challenger has shown.
 
 ## Remaining two weeks
 
-- Land the D2 vintage and D3 rerun results into their reports and STATE.md.
-- Final D5 evaluation report with everything above in one place.
-- D6: deploy the verified container to NRP the day the kubeconfig arrives.
+- D6: deploy the verified container to NRP the day the kubeconfig arrives. This
+  is the only unfinished deliverable, and no part of it is blocked on code.
+- Act on whatever the field check of the top-ranked D3 blocks turns up — that
+  agreement or disagreement is the first label set.
 - Handoff docs and the final GSoC submission.

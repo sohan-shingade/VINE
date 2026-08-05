@@ -1,6 +1,6 @@
 # D4 report: label-free GDD phenology exploration (2025 vs 2026)
 
-**Deliverable:** D4 harvest timing · **Date:** 2026-08-04 · **Status:** exploratory
+**Deliverable:** D4 harvest timing · **Date:** 2026-08-05 · **Status:** exploratory
 climate context — **not a model, not a harvest predictor**
 
 D4 is blocked on historical harvest dates, yields, and Brix/pH/TA
@@ -57,7 +57,14 @@ Bands are configurable literature reference values, not local calibration.
 Sources are in the module docstring: Chardonnay flowering ≈350 GDD10 (Van Leeuwen
 et al., "Heat requirements for grapevine varieties", IVES OpenScience; Bavaresco
 et al. 2019, BIO Web Conf. 12, 01010); véraison 908–1250 GDD10 across cultivars,
-Chardonnay mid-véraison 1165 GDD10 (same sources).
+Chardonnay mid-véraison 1165 GDD10 (same sources). The configured véraison-start
+threshold is **1100**, not the literature floor of 908: 908 is the cross-cultivar
+minimum, while Chardonnay's own mid-véraison sits at 1165, so 1100 brackets that
+mid-point from below. This is a judgement call, not a cited value, and it moves
+the crossing date — the headline "too late" finding is therefore conservative,
+since the lower 908 threshold would place the crossing *earlier* and closer to
+plausible, while the Jan-1-vs-Apr-1 accumulation mismatch below remains the
+dominant error.
 
 | Season | Band | Threshold | Crossed | Day of season |
 |---|---|---|---|---|

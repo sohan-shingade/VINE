@@ -394,6 +394,8 @@ def write_d3_report(result: pd.DataFrame) -> None:
                 "ndre_coverage": "{:.3f}",
             },
         )
+        + "\n\nMachine-readable detail is in "
+        "[`assets/d3_low_coverage.csv`](assets/d3_low_coverage.csv)."
         if len(low)
         else (
             "No block was excluded. Every polygon interior is fully covered by valid "
@@ -461,9 +463,6 @@ The complete ranked output is
 
 {excluded_section}
 
-Machine-readable detail is in
-[`assets/d3_low_coverage.csv`](assets/d3_low_coverage.csv).
-
 ## Limits
 
 - **This is a screening order, not a label.** Low indices can reflect phenology, background
@@ -529,11 +528,14 @@ def write_d5_report(water_balance: pd.DataFrame, fleet: pd.DataFrame) -> None:
 **Deliverable:** D5 evaluation, feeding D2 irrigation · **Date:** 2026-08-05 ·
 **Status:** persistence remains the served champion
 
-Every quoted D2 number below is recomputed offline by `scripts/generate_reports.py`. The build
+Every D2 table below is recomputed offline by `scripts/generate_reports.py`. The build
 loads the five DVC-pinned soil-probe snapshots and pinned weather snapshot through
 `load_soil_probe_frames`, calls `seed_everything`, validates the checked-in YAML configs, and
 runs the current `run_experiment` and `run_pooled_experiment` package APIs. It has no dependency
-on `mlruns`, a run ID, prose-transcribed metrics, network access, or raster downloads.
+on `mlruns`, a run ID, network access, or raster downloads. The one exception is the
+"Water balance on real forecast vintages" section: those figures are quoted from the
+[D2 vintage validation report](2026-08-04-d2-vintage-validation.md), whose run needs the
+archived-forecast snapshot rather than this offline path.
 
 Clean-clone reproduction:
 
@@ -556,7 +558,8 @@ uv run python scripts/generate_reports.py
 - **Micro-average limit:** pooled `ALL` skill is a row-weighted micro-average of correlated
   probe-hours sharing timestamps and weather. It is not five independent replications.
 - **Worst-fold limit:** aggregate gains do not satisfy the promotion gate when worst-fold skill
-  is negative. Worst-fold results are reported for every computed horizon below.
+  is negative. The table below reports worst folds at 48 hours; all four horizons are in the
+  linked CSV.
 
 ## Water balance: 48-hour per-probe evidence
 
@@ -566,7 +569,8 @@ uv run python scripts/generate_reports.py
 
 Aggregate 48-hour skill is {wb_low:+.1f}% to {wb_high:+.1f}% across five probes, but every
 probe has a negative worst fold ({wb_worst_low:+.1f}% to {wb_worst_high:+.1f}%). This is
-oracle-weather evidence, so water balance remains an active experiment and is not promoted.
+oracle-weather evidence; the real-forecast rerun in the next section settles it, and water
+balance is not promoted.
 All 6/12/24/48-hour rows are in
 [`assets/d5_water_balance_all_horizons.csv`](assets/d5_water_balance_all_horizons.csv).
 
@@ -579,10 +583,12 @@ with lead-time weather drawn from archived Open-Meteo forecast runs as issued, a
 
 - The 48-hour aggregate edge survives real forecasts (+5.3% to +13.5% across the five probes,
   against +3.5% to +11.2% under the oracle), so it is not an oracle artifact.
-- 24-hour skill flips negative on every probe (−2.8% to −8.1%) with worst folds down to −2.448:
-  the correction trusts day-1 forecast rain that did not arrive on the forecast hours.
-- Worst-fold skill stays negative on every probe at every horizon, so the ADR-0003 gate still
-  fails and persistence remains served.
+- 24-hour skill flips negative on every probe (−2.8% to −8.1%) with worst folds from −0.510 to
+  −2.448 — at −2.448 the corrected forecast's MAE is 3.4× persistence's in that fold. The
+  correction trusts day-1 forecast rain that did not arrive on the forecast hours.
+- Worst-fold skill stays negative in every cell where the correction is ever active; the four
+  exactly-zero 6/12-hour cells are ones where it never fires and the forecast equals
+  persistence. The ADR-0003 gate still fails and persistence remains served.
 
 ## Pooled GBT and ridge: fleet evidence
 

@@ -1,6 +1,6 @@
 # D2 report: water balance on real archived forecast vintages
 
-**Deliverable:** D2 irrigation · **Date:** 2026-08-04 · **Status:** validation
+**Deliverable:** D2 irrigation · **Date:** 2026-08-05 · **Status:** validation
 complete — **not promoted; persistence remains served**
 
 The water-balance weather correction previously showed +3.5…+11.2% aggregate
@@ -63,8 +63,9 @@ O = oracle (realized weather), V = vintage (real archived forecasts).
   of it. The zeros at 6–12 h are mostly the adaptive blend correctly
   collapsing to persistence.
 - **Real forecasts make 24 h clearly worse than the oracle**: aggregate skill
-  is negative on every probe (−2.8…−8.1%) and worst folds reach −1.1…−2.4
-  (i.e. 2–3× persistence error in the worst fold). At this horizon the model
+  is negative on every probe (−2.8…−8.1%) and worst folds span −0.51…−2.45
+  (at −2.45 the corrected forecast's MAE is 3.4× persistence's in that fold).
+  At this horizon the model
   trusts day-1 forecast precipitation that the realized weather did not
   deliver on the hours forecast.
 - **The gate fails.** Worst-fold skill is negative on every probe at 48 h

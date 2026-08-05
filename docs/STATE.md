@@ -18,11 +18,15 @@ archived forecast vintages** (Open-Meteo Previous Runs, `ceil(h/24)`-day lag,
 causality unit-tested) instead of realized future weather. The 48 h aggregate
 edge survives the switch (+5.3…+13.5% across five probes, vs +3.5…+11.2% under
 the oracle), but 24 h flips negative on every probe (−2.8…−8.1%, worst fold
-−2.448) and **worst-fold skill is negative on every probe at every horizon**, so
+−2.448) and **worst-fold skill is negative in every cell where the correction is
+ever active** (four 6/12 h cells are exactly 0.000 — the correction never fires
+there, so water balance is identical to persistence), so
 the ADR-0003 gate fails. **Persistence remains the served D2 forecaster** and
 water balance stays research with a sharper open question (per-fold forecast-bust
 robustness, not a new model family). Nine challenger families have now been
-evaluated and rejected across five probes.
+evaluated and rejected — the pooled and water-balance rungs on all five probes,
+the earlier per-sensor rungs on four (SE0X-LS-1 was only recovered on
+2026-07-09).
 
 The corrected D3 39-block screen also completed. Both earlier attempts died in
 the remote `/vsicurl` read path; this run downloaded the two ~4 GB rasters to
@@ -45,7 +49,10 @@ D6 serves persistence + threshold locally with typed quality/freshness
 responses; a real stale snapshot correctly suppresses advice. Cluster deploy
 needs only the kubeconfig. Current local gate: **186 tests passed**; Ruff,
 formatting, mypy, strict MkDocs, codemap regeneration, and deterministic report
-regeneration are clean. DVC cache and the `nrp` remote are in sync. Remaining
+regeneration are clean. The sensor and weather snapshots (including the archived
+forecast-vintage parquet) are re-pinned and pushed to the `nrp` remote; the
+~7.8 GB of D3 rasters under `data/raw/imagery/rasters/` are a local working
+download and are deliberately **not** pinned. Remaining
 human blockers: D3 labels, harvest records, kubeconfig, pressure semantics, and
 token rotation.
 
@@ -126,7 +133,7 @@ winter/dormant; the useful growing-season flights are Aug (pre-harvest) + Oct
 |---|-------------|--------|-------|
 | — | Repo + Claude Code scaffold + wiki | ☑ | builds green: ruff/mypy/tests |
 | D1 | Data pipeline | ☑ | **all three reachable inputs done + live-verified**: sensor path (ingest→flags→features→weather/GDD), weather reader (historical, forecast, **and archived forecast vintages**), **imagery path** (WebDAV flight index → capture grouping → band download → NDVI) + **block alignment** (39 KMZ polygons, sensor→block join, windowed zonal stats with polygon-interior coverage). Historical records (input #3) remain a mentor Q — D4-only |
-| D2 | Irrigation models | ☑ | **Closed: persistence is the served forecaster.** Nine challenger families evaluated across five probes; none clears the worst-fold gate. Water balance was validated on **real archived forecast vintages** — 48 h aggregate edge survives (+5.3…+13.5%), 24 h flips negative, worst folds negative everywhere → not promoted, stays research. D6 serves persistence+threshold |
+| D2 | Irrigation models | ☑ | **Closed: persistence is the served forecaster.** Nine challenger families evaluated and rejected; the pooled and water-balance rungs ran on all five probes, the earlier rungs on four. Water balance was validated on **real archived forecast vintages** — 48 h aggregate edge survives (+5.3…+13.5%), 24 h flips negative, worst-fold skill negative wherever the correction is active → not promoted, stays research. D6 serves persistence+threshold |
 | D3 | Plant-health CV | ☑ (label-free scope) | Corrected 39-block screen complete on real 2026-06-01 rasters: 39/39 pass the polygon-interior coverage gate, deterministic concern ranks retained as a versioned artifact and rendered offline. Supervised classification remains blocked on mentor-provided labels — that is a data blocker, not open code |
 | D4 | Harvest timing | ☑ (descoped-exploratory) | No harvest/yield/Brix labels exist (input #3), so per ADR-0003 D4 is exploratory: a label-free GDD/Winkler phenology module with no learned parameters, plus a report and model card that state plainly it does not ship. Supervised D4 stays blocked on records |
 | D5 | Evaluation report | ☑ | Shared metrics, expanding walk-forward, per-fold skill, `h−1` training-label purge. Final report is regenerated offline from pinned snapshots with no MLflow or network dependency |
@@ -357,8 +364,9 @@ winter/dormant; the useful growing-season flights are Aug (pre-harvest) + Oct
   zero missing) and reran the same purged evaluation with
   `weather_source: vintage`. The 48 h aggregate edge survives real forecasts
   (+5.3…+13.5% vs the oracle's +3.5…+11.2%), but 24 h flips negative on every
-  probe (−2.8…−8.1%, worst fold −2.448) and **worst-fold skill is negative on
-  every probe at every horizon** → gate fails, **not promoted, persistence stays
+  probe (−2.8…−8.1%, worst fold −2.448) and **worst-fold skill is negative in
+  every cell where the correction is ever active** (the four exactly-zero 6/12 h
+  cells are cells where it never fires) → gate fails, **not promoted, persistence stays
   served**. The fresh oracle control run reproduced the 2026-07-23 numbers
   exactly. (2) **D3 corrected 39-block screen.** Both prior attempts died in the
   remote `/vsicurl` path (endless `HTTP error code: 0` retries after hours of
@@ -423,8 +431,15 @@ in D1–D5 or D7.
    not used as an irrigation-event label.
 
 **State of the tree:** the corrected D3 screen, the D2 vintage validation, and
-the D4 exploratory slice all landed and are committed with their reports. DVC
-cache and the `nrp` remote are in sync (`dvc status -c` clean) — no push pending.
+the D4 exploratory slice all landed and are committed with their reports.
+`data/raw/sensors` and `data/raw/weather` were re-pinned on 2026-08-05 (the
+weather snapshot now includes `forecast_vintages_2026-01-22_2026-07-08.parquet`)
+and pushed. `data/raw/imagery` still reads as modified on purpose: the two ~4 GB
+D3 orthomosaics were downloaded into `data/raw/imagery/rasters/` for local
+screening and are not worth ~7.8 GB of shared bucket — refetch them from the
+NextCloud `GIS/` share if you need to rerun the screen. Everything the reports
+regenerate from *is* pinned. Note that `dvc status -c` only compares cache to
+remote; use plain `dvc status` to see whether the workspace matches its pins.
 
 ## How we keep state across sessions
 

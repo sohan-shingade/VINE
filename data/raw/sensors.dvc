@@ -1,6 +1,6 @@
 outs:
-- md5: 56baa44f8dd7ed96fcbdd818cda60d77.dir
-  size: 11505678
-  nfiles: 9
+- md5: 878fbba26d19b3f1428a5499c857e6cc.dir
+  size: 11740036
+  nfiles: 12
   hash: md5
   path: sensors
