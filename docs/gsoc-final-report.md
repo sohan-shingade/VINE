@@ -24,9 +24,9 @@ harness (D5), a serving layer (D6), and documentation (D7).
 | D4 | Harvest timing | Descoped to a GDD phenology exploration, no harvest records exist |
 | D5 | Evaluation report | Done, walk-forward harness regenerates offline from pinned snapshots |
 | D6 | NRP deployment | Image built and smoke-tested, cluster live, pending registry push |
-| D7 | Docs and devlog | Done, 13 reports, 13 ADRs, 4 model cards, 9 devlog posts |
+| D7 | Docs and devlog | Done, 13 reports, 12 ADRs, 4 model cards, 9 devlog posts |
 
-By the numbers: 42 commits, roughly 13,000 lines of Python across `src/` and
+By the numbers: 44 commits, roughly 13,000 lines of Python across `src/` and
 `tests/`, 348 tests passing, MkDocs building under `--strict`.
 
 ## The result that mattered most
