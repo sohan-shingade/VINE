@@ -625,6 +625,14 @@ winter/dormant; the useful growing-season flights are Aug (pre-harvest) + Oct
   since 2026-07-09 while 18 commits of finished work sat on
   `track/d2-d3-serving-notebooks`; `main` is now fast-forwarded to match, so the
   commit link given to the mentor at midterm shows the real history.
+- **GSoC final work product page written (2026-08-06).**
+  `docs/gsoc-final-report.md` is the single page a reviewer reads: deliverable
+  states, the D2 negative result, unfinished items with their blockers, and the
+  offline reproduction commands. The timeline in `docs/index.md` and
+  `docs/roadmap.md` now carries the real GSoC dates (coding ends 2026-08-16,
+  final contributor submission 2026-08-24 18:00 UTC, mentor evaluations close
+  2026-08-31), and the D6 roadmap row no longer claims a kubeconfig blocker that
+  cleared on 2026-08-05.
 
 ## Open questions for mentor
 
