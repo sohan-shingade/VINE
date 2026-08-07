@@ -1,8 +1,9 @@
 # Roadmap
 
-350 hours over 13 weeks (May 25 to Aug 24, 2026). Each phase ends with a
-working, testable artifact instead of a big-bang integration. Mirrors the
-proposal timeline.
+350 hours over 13 weeks. The coding period ends **2026-08-16**; the final
+contributor submission is due **2026-08-24, 18:00 UTC**, and mentor evaluations
+close 2026-08-31. Each phase ends with a working, testable artifact instead of a
+big-bang integration. Mirrors the proposal timeline.
 
 | Weeks | Dates | Phase | Deliverables |
 |------:|-------|-------|--------------|
@@ -18,7 +19,7 @@ proposal timeline.
 ## Status legend
 `☐ planned · ◐ in progress · ☑ done`
 
-Status as of **2026-08-05 (week 11 of 13)**:
+Status as of **2026-08-06 (week 11 of 13, 10 days of coding left)**:
 
 | Deliverable | Status |
 |-------------|--------|
@@ -27,13 +28,13 @@ Status as of **2026-08-05 (week 11 of 13)**:
 | D3 Plant-health CV | ☑ label-free scope: corrected 39-block screen complete (39/39 pass coverage); supervised CV blocked on labels |
 | D4 Harvest timing | ☑ descoped to exploratory per ADR-0003: label-free GDD context built (it is not a model and does not ship); full D4 blocked on historical records |
 | D5 Evaluation report | ☑ walk-forward harness with `h−1` purge; final report regenerates offline from pinned snapshots |
-| D6 NRP deployment | ◐ local API + non-root container verified; cluster deploy blocked on kubeconfig |
-| D7 Docs & devlog | ☑ cards, reports, ADRs, and devlog current; MkDocs builds strict |
+| D6 NRP deployment | ◐ local API + non-root container verified; cluster access, storage, and seeded data all live; blocked only on a GitLab project to push the image to |
+| D7 Docs & devlog | ☑ cards, reports, ADRs, devlog, and executed notebook renders current; MkDocs builds strict |
 
 Honest read at week 11: every deliverable that can be finished without a human
-input is finished. D6's cluster step cannot start until the kubeconfig arrives,
-and full D4 never unblocked. Its exploratory slice is the deliverable unless
-harvest records appear in the final two weeks. Remaining effort goes to handoff
+input is finished. D6 is one `docker push` from done once the registry project
+exists, and full D4 never unblocked. Its exploratory slice is the deliverable
+unless harvest records appear before Aug 16. Remaining effort goes to handoff
 docs and the final GSoC submission.
 
 ## Future work (post-GSoC)

@@ -42,6 +42,7 @@ community.
 - What's the data? → [Data datasheet](data/index.md)
 - Why is it built this way? → [Decisions (ADRs)](adr/index.md)
 - Progress over time → [Devlog](devlog/index.md) · [Roadmap](roadmap.md)
+- Reviewing the whole thing? → [GSoC final work product](gsoc-final-report.md)
 
 ## Project facts
 
@@ -50,6 +51,6 @@ community.
 | Contributor | Sohan Shingade (UC San Diego, B.S. Data Science) |
 | Mentor | Mohammad Firas Sada (UCSD) |
 | Compute | NRP/Nautilus Kubernetes (A100 / L40 / RTX A6000 GPU pods) |
-| Timeline | 350 hours, 13 weeks (May 25 to Aug 24, 2026) |
+| Timeline | 350 hours, 13 weeks. Coding ends Aug 16, 2026; final submission Aug 24, 2026 |
 | Repo | `gitlab.nrp-nautilus.io` (public), mirrored to GitHub |
 | License | MIT |
